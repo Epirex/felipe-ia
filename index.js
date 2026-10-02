@@ -120,14 +120,14 @@ async function enviarRespuesta(sock, jid, respuesta) {
 
   if (respuesta.tipo === "bienvenida") {
     // Mandar el audio de bienvenida leyendo el archivo local
-    const audioPath = path.join(__dirname, "public", "audio", "felipebienvenida.mp3");
+    const audioPath = path.join(__dirname, "public", "audio", "felipebienvenida.ogg");
 
     if (fs.existsSync(audioPath)) {
       try {
         await sock.sendMessage(jid, {
-          audio:    { url: audioPath }, // Usa el archivo local directamente
-          mimetype: "audio/mp4",        // mp4 suele ser más compatible en WhatsApp
-          ptt:      false,              // false: lo manda como archivo de audio (funciona en iOS/Android). Si es true, exige que el archivo sea Opus (.ogg) y falla en celulares.
+          audio:    { url: audioPath },
+          mimetype: "audio/ogg; codecs=opus", 
+          ptt:      true,  // Se manda como nota de voz (el formato OGG Opus es nativo y lo soportan todos los celulares)
         });
         await new Promise((r) => setTimeout(r, 500));
       } catch (e) {
