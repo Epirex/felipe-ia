@@ -21,6 +21,11 @@ const botState             = require("./state");
 // Carpeta donde Baileys guarda la sesión de WhatsApp
 const AUTH_FOLDER = process.env.AUTH_FOLDER || "auth";
 
+// Número de teléfono del bot para vinculación sin QR (recomendado en servidores).
+// Formato: código de país + número, sin +, sin espacios. Ej: 5493834403982
+// Si está definido, el bot muestra un código de 8 dígitos en los logs en lugar del QR.
+const PHONE_NUMBER = process.env.PHONE_NUMBER || null;
+
 // Rate limiting: un usuario debe esperar COOLDOWN_MS entre respuestas
 // para evitar que el bot responda en bucle o sea abusado.
 const COOLDOWN_MS = 5000; // 5 segundos
@@ -97,16 +102,33 @@ async function iniciarBot() {
   const sock = makeWASocket({
     version,
     auth: state,
-    logger: pino({ level: "silent" }), // poné "info" si querés ver logs detallados
-    printQRInTerminal: false, // lo manejamos nosotros abajo para más control
+    logger: pino({ level: "silent" }),
+    printQRInTerminal: false,
   });
 
   sock.ev.on("creds.update", saveCreds);
 
+  // ── Vinculación: pairing code (servidor) o QR (local) ────────
+  if (PHONE_NUMBER && !sock.authState.creds.registered) {
+    // Esperar un momento antes de pedir el código
+    await new Promise((r) => setTimeout(r, 3000));
+    try {
+      const code = await sock.requestPairingCode(PHONE_NUMBER);
+      logger.info("═══════════════════════════════════════════");
+      logger.info(`📱 CÓDIGO DE VINCULACIÓN: ${code}`);
+      logger.info("Abrí WhatsApp > Dispositivos vinculados >");
+      logger.info("Vincular con número de teléfono > ingresá el código");
+      logger.info("═══════════════════════════════════════════");
+    } catch (err) {
+      logger.error("No se pudo obtener el código de vinculación:", err.message);
+    }
+  }
+
   sock.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    if (qr) {
+    // Mostrar QR solo si NO hay PHONE_NUMBER configurado (modo local/desarrollo)
+    if (qr && !PHONE_NUMBER) {
       logger.info("Escaneá este QR con WhatsApp > Dispositivos vinculados:");
       qrcode.generate(qr, { small: true });
     }
@@ -121,13 +143,14 @@ async function iniciarBot() {
         logger.info("Intentando reconectar...");
         iniciarBot();
       } else {
-        logger.error("🔒 Sesión cerrada (logout). Borrá la carpeta 'auth' y volvé a escanear el QR.");
+        logger.error("🔒 Sesión cerrada. Borrá la carpeta 'auth' y reiniciá el servicio en Railway.");
       }
     } else if (connection === "open") {
       botState.online      = true;
       botState.connectedAt = Date.now();
       logger.info("✅ Bot conectado y funcionando.");
     }
+
   });
 
   // ── Escucha de mensajes entrantes ────────────────────────────
