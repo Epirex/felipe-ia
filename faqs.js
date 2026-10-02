@@ -1,26 +1,16 @@
 // ============================================================
 // BASE DE PREGUNTAS FRECUENTES DEL MUNICIPIO
 // ============================================================
-// Cada entrada tiene:
-//   - palabras_clave: si alguna aparece en el mensaje, se usa esa respuesta.
-//   - respuesta: puede ser un string (texto simple) o un objeto especial:
-//       { tipo: "ubicacion", ... }   → manda pin de ubicación en el mapa
-// El bot revisa las entradas en orden y usa la primera que matchee.
-// ============================================================
-
-// NOTA: las entradas de "quien sos" / "quien te hizo" y "como estas" a
-// propósito NO figuran en el texto de "bienvenida". Siguen funcionando
-// si alguien pregunta directamente, pero no se muestran en el menú.
 
 const faqs = [
   {
-    palabras_clave: ["horario", "horarios", "atencion", "atienden", "abren", "cierran", "6"],
+    palabras_clave: ["horario", "horarios", "atencion", "atienden", "abren", "cierran", "1"],
     respuesta:
       "🕐 *Horario de atención*\nLunes a viernes de 7:00 a 13:00 hs.\nSábados, domingos y feriados: cerrado.",
   },
   {
     // Respuesta especial: manda ubicación en el mapa + texto
-    palabras_clave: ["direccion", "ubicacion", "donde queda", "donde esta", "domicilio", "como llego", "llegar", "7"],
+    palabras_clave: ["direccion", "ubicacion", "donde queda", "donde esta", "domicilio", "como llego", "llegar", "2"],
     respuesta: {
       tipo: "ubicacion",
       latitud: -28.44927,
@@ -31,39 +21,64 @@ const faqs = [
     },
   },
   {
-    palabras_clave: ["turno", "turnos", "sacar turno", "reservar turno"],
+    palabras_clave: ["turno", "turnos", "sacar turno", "reservar turno", "3"],
     respuesta:
-      "📅 *Turnos*\n¿Qué turno necesitás sacar?\n1️⃣ Licencia de conducir\n2️⃣ Camión atmosférico (desagote/pozo ciego)\n\nRespondé con el número o el nombre del trámite y te paso el link correspondiente.",
+      "📅 *Turnos*\n¿Qué turno necesitás sacar?\n\n🚗 *Licencia de conducir*: https://valleviejo.gob.ar/sitio_landing/licencias/\n\n🚛 *Camión atmosférico*: https://docs.google.com/forms/d/e/1FAIpQLSd4O0b_DSpWh2R40sjooIvErK437LNM2utHw_jMuj6HFHFqKw/viewform\n\n🤝 *Acción Social*: (⚠️ Falta completar link o info)",
   },
   {
-    palabras_clave: ["contacto", "telefono", "numero", "llamar", "email", "correo", "8"],
+    palabras_clave: ["tramite", "tramites", "documentacion", "requisitos", "papeles", "4"],
     respuesta:
-      "📞 *Contacto*\nTeléfono: 03834443303\nFacebook: https://www.facebook.com/municipiodevalleviejo/\nInstagram: https://www.instagram.com/valleviejociudad/",
+      "📄 *Trámites*\nContanos qué trámite necesitás hacer y te paso los datos correspondientes. También podés consultar en nuestra web: https://valleviejo.gob.ar/",
   },
   {
-    palabras_clave: ["tramite", "tramites", "documentacion", "requisitos", "papeles", "3"],
+    palabras_clave: ["reclamo", "reclamos", "denuncia", "queja", "bache", "baches", "alumbrado", "luz", "basura", "residuos", "arbol", "rama", "calle", "5"],
     respuesta:
-      "📄 *Trámites*\nContanos qué trámite necesitás hacer (ej: licencia de conducir, camión atmosférico, reclamos, pago de tasas) y te paso los datos correspondientes.",
+      "📢 *Reclamos*\nCargá tu reclamo (alumbrado, limpieza, baches, etc.) completando este formulario:\nhttps://docs.google.com/forms/d/e/1FAIpQLSf01unpuwhlhJeduWUKxz1hdW2sOpPTcHbkkPbfg9yRkgb8kQ/viewform",
   },
   {
-    palabras_clave: ["licencia", "licencia de conducir", "carnet", "turno licencia", "1"],
-    respuesta:
-      "🚗 *Licencia de conducir*\nTodos los requisitos y el turno online los encontrás acá:\nhttps://valleviejo.gob.ar/sitio_landing/licencias/",
-  },
-  {
-    palabras_clave: ["camion atmosferico", "atmosferico", "desagote", "pozo ciego", "turno camion", "2"],
-    respuesta:
-      "🚛 *Turno para camión atmosférico*\nSolicitá tu turno completando este formulario:\nhttps://docs.google.com/forms/d/e/1FAIpQLSd4O0b_DSpWh2R40sjooIvErK437LNM2utHw_jMuj6HFHFqKw/viewform",
-  },
-  {
-    palabras_clave: ["reclamo", "reclamos", "denuncia", "queja", "bache", "baches", "alumbrado", "luz", "basura", "residuos", "arbol", "rama", "calle", "4"],
-    respuesta:
-      "📢 *Reclamos*\nCargá tu reclamo (alumbrado, recolección de residuos, baches, etc.) completando este formulario:\nhttps://docs.google.com/forms/d/e/1FAIpQLSf01unpuwhlhJeduWUKxz1hdW2sOpPTcHbkkPbfg9yRkgb8kQ/viewform",
-  },
-  {
-    palabras_clave: ["impuesto", "impuestos", "tasa", "tasas", "pagar", "rentas", "5"],
+    palabras_clave: ["impuesto", "impuestos", "tasa", "tasas", "pagar", "rentas", "6"],
     respuesta:
       "💰 *Pagos e impuestos*\nPodés pagar tus tasas municipales online en:\nhttps://valleviejo.gob.ar/rentas/\n\nO en las cajas habilitadas de lunes a viernes de 7:00 a 13:00 hs.",
+  },
+  {
+    palabras_clave: ["casa de la juventud", "juventud", "jovenes", "7"],
+    respuesta:
+      "🏠 *Casa de la Juventud*\n(⚠️ Falta completar información. Respondeme con los datos que querés que diga acá).",
+  },
+  {
+    palabras_clave: ["conviviendo", "programa conviviendo", "8"],
+    respuesta:
+      "🤝 *Programa Conviviendo*\n(⚠️ Falta completar información. Respondeme con los datos que querés que diga acá).",
+  },
+  {
+    palabras_clave: ["recoleccion", "basurero", "camion de basura", "recoleccion de residuos", "9"],
+    respuesta:
+      "🗑️ *Recolección de Residuos*\n(⚠️ Falta completar información sobre los días y horarios por barrio).",
+  },
+  {
+    palabras_clave: ["medio ambiente", "ambiente", "ecologia", "reciclaje", "10"],
+    respuesta:
+      "🌱 *Medio Ambiente*\n(⚠️ Falta completar información. Respondeme con los datos que querés que diga acá).",
+  },
+  {
+    palabras_clave: ["turismo", "visitar", "pasear", "lugares", "11"],
+    respuesta:
+      "🏞️ *Turismo*\nValle Viejo tiene hermosos lugares para conocer. (⚠️ Falta completar información sobre atractivos o links de turismo).",
+  },
+  {
+    palabras_clave: ["posta", "postas", "postas sanitarias", "salud", "caps", "12"],
+    respuesta:
+      "🏥 *Postas Sanitarias*\n(⚠️ Falta completar información sobre ubicación y horarios de las postas).",
+  },
+  {
+    palabras_clave: ["deporte", "deportes", "polideportivo", "canchas", "13"],
+    respuesta:
+      "⚽ *Deporte*\n(⚠️ Falta completar información sobre actividades deportivas).",
+  },
+  {
+    palabras_clave: ["contacto", "telefono", "numero", "llamar", "email", "correo"],
+    respuesta:
+      "📞 *Contacto*\nTeléfono: 03834443303\nFacebook: https://www.facebook.com/municipiodevalleviejo/\nInstagram: https://www.instagram.com/valleviejociudad/",
   },
   // ---- Estas NO aparecen en el menú, solo responden si preguntan directo ----
   {
@@ -84,28 +99,29 @@ const faqs = [
 ];
 
 // ── Menú de bienvenida ────────────────────────────────────────
-// Texto numerado: funciona en cualquier versión de WhatsApp.
 const bienvenida = {
   tipo: "bienvenida",
   texto: 
     "👋 ¡Hola! Soy *Felipe IA*, el asistente virtual del *Municipio de Valle Viejo*.\n\n" +
-    "¿En qué puedo ayudarte? Escribí el número o tu consulta con tus propias palabras:\n\n" +
-    "*Trámites y servicios*\n" +
-    "1️⃣  Licencia de conducir\n" +
-    "2️⃣  Camión atmosférico\n" +
-    "3️⃣  Trámites municipales\n" +
-    "4️⃣  Reclamos (baches, alumbrado, etc.)\n" +
-    "5️⃣  Pagos e impuestos\n\n" +
-    "*Información general*\n" +
-    "6️⃣  Horarios de atención\n" +
-    "7️⃣  Ubicación\n" +
-    "8️⃣  Contacto"
+    "¿En qué puedo ayudarte? Escribí el número de la opción deseada o tu consulta:\n\n" +
+    "1️⃣ Horarios de atención\n" +
+    "2️⃣ Ubicación\n" +
+    "3️⃣ Turnos (Licencia, Atmosférico, Acción Social)\n" +
+    "4️⃣ Trámites\n" +
+    "5️⃣ Reclamos\n" +
+    "6️⃣ Pagos e impuestos\n" +
+    "7️⃣ Casa de la Juventud\n" +
+    "8️⃣ Conviviendo\n" +
+    "9️⃣ Recolección de residuos\n" +
+    "🔟 Medio Ambiente\n" +
+    "1️⃣1️⃣ Turismo\n" +
+    "1️⃣2️⃣ Postas Sanitarias\n" +
+    "1️⃣3️⃣ Deporte"
 };
 
 // Mensaje cuando no se entiende la consulta
 const noEntendido =
-  "🤔 No tengo una respuesta para eso todavía.\n" +
-  "Probá preguntando por: *horarios*, *dirección*, *contacto*, *trámites*, *reclamo* o *pagos*.\n\n" +
-  "O escribí *menú* para ver todas las opciones.";
+  "🤔 No tengo una respuesta para eso todavía.\n\n" +
+  "Escribí *menú* para ver todas las opciones disponibles.";
 
 module.exports = { faqs, bienvenida, noEntendido };
