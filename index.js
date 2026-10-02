@@ -116,11 +116,10 @@ async function enviarRespuesta(sock, jid, respuesta) {
     return;
   }
 
-  if (respuesta.tipo === "lista") {
+  if (respuesta.tipo === "bienvenida") {
     // Si hay audio de bienvenida configurado, mandarlo primero como nota de voz
-    const audioUrl = process.env.PUBLIC_URL
-      ? `${process.env.PUBLIC_URL}/audio/felipebienvenida.mp3`
-      : null;
+    const baseUrl  = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
+    const audioUrl = baseUrl ? `${baseUrl}/audio/felipebienvenida.mp3` : null;
 
     if (audioUrl) {
       try {
@@ -135,20 +134,8 @@ async function enviarRespuesta(sock, jid, respuesta) {
       }
     }
 
-    await sock.sendMessage(jid, {
-      text:        respuesta.texto,
-      footer:      respuesta.pie,
-      title:       "",
-      buttonText:  respuesta.boton,
-      sections:    respuesta.secciones.map((s) => ({
-        title: s.titulo,
-        rows:  s.filas.map((f) => ({
-          id:          f.id,
-          title:       f.titulo,
-          description: f.descripcion || "",
-        })),
-      })),
-    });
+    // Luego enviamos el texto del menú
+    await sock.sendMessage(jid, { text: respuesta.texto });
     return;
   }
 
