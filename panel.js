@@ -38,10 +38,10 @@ function basicAuth(req, res, next) {
   return res.status(401).send("Usuario o contraseña incorrectos");
 }
 
-app.use(basicAuth);
-
-// ── Archivos estáticos (audio, imágenes, etc.) ────────────────
+// ── Archivos estáticos (audio, imágenes, etc.) públicos ───────
 app.use("/audio", express.static(path.join(__dirname, "public", "audio")));
+
+app.use(basicAuth);
 
 // ── Dashboard HTML ────────────────────────────────────────────
 app.get("/", (req, res) => {
