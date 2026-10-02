@@ -1,0 +1,22 @@
+# Dependencias de Node
+node_modules/
+
+# Base de datos SQLite (se genera en el servidor, no va al repo)
+data/
+
+# Sesión de WhatsApp (¡NO subir al repo! contiene credenciales)
+auth/
+*.json
+!package.json
+!package-lock.json
+
+# Variables de entorno
+.env
+
+# Logs
+*.log
+logs/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

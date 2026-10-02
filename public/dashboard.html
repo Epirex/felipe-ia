@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Felipe IA — Panel Administrativo</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --card: #ffffff;
+      --primary: #1a56db;
+      --primary-light: #dbeafe;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --green: #10b981;
+      --red: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Header ── */
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 700; }
+    header .sub { font-size: 0.78rem; opacity: 0.75; margin-top: 2px; }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.15);
+      padding: 7px 16px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+    .dot.online { background: #4ade80; animation: blink 2s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Main layout ── */
+    main { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+    .updated { font-size: 0.75rem; color: var(--muted); text-align: right; margin-bottom: 18px; }
+
+    /* ── Cards ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 18px 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    }
+    .card .label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .card .value { font-size: 2rem; font-weight: 800; color: var(--primary); line-height: 1; }
+    .card .sub   { font-size: 0.72rem; color: var(--muted); margin-top: 5px; }
+
+    /* ── Sections ── */
+    .section {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px 22px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,.05);
+      margin-bottom: 20px;
+    }
+    .section h2 { font-size: 0.95rem; font-weight: 700; margin-bottom: 16px; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+    .tab {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .tab:hover { border-color: var(--primary); color: var(--primary); }
+    .tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* ── Two columns ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* ── Tables ── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th {
+      text-align: left;
+      padding: 8px 10px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+      border-bottom: 2px solid var(--border);
+    }
+    td { padding: 10px 10px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+
+    .badge {
+      display: inline-block;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+    }
+    .no-data { color: var(--muted); font-style: italic; text-align: center; padding: 28px; }
+
+    /* ── Rank number ── */
+    .rank { font-weight: 700; color: var(--muted); width: 28px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🤖 Felipe IA — Panel Administrativo</h1>
+    <div class="sub">Municipalidad de Valle Viejo</div>
+  </div>
+  <div class="status-pill">
+    <span class="dot" id="dot"></span>
+    <span id="status-text">Cargando...</span>
+  </div>
+</header>
+
+<main>
+  <div class="updated" id="updated"></div>
+
+  <!-- Cards de resumen -->
+  <div class="cards">
+    <div class="card"><div class="label">Total mensajes</div><div class="value" id="c-total">—</div><div class="sub">histórico</div></div>
+    <div class="card"><div class="label">Usuarios únicos</div><div class="value" id="c-usuarios">—</div><div class="sub">histórico</div></div>
+    <div class="card"><div class="label">Sin respuesta</div><div class="value" id="c-sin">—</div><div class="sub">del total</div></div>
+    <div class="card"><div class="label">Hoy</div><div class="value" id="c-hoy">—</div><div class="sub">mensajes</div></div>
+    <div class="card"><div class="label">Esta semana</div><div class="value" id="c-semana">—</div><div class="sub">mensajes</div></div>
+    <div class="card"><div class="label">Este mes</div><div class="value" id="c-mes">—</div><div class="sub">mensajes</div></div>
+    <div class="card"><div class="label">Este año</div><div class="value" id="c-anio">—</div><div class="sub">mensajes</div></div>
+  </div>
+
+  <!-- Gráfico de actividad -->
+  <div class="section">
+    <h2>📈 Actividad del bot</h2>
+    <div class="tabs">
+      <button class="tab active" onclick="cambiarPeriodo('dia', this)">Últimos 30 días</button>
+      <button class="tab" onclick="cambiarPeriodo('semana', this)">Por semana</button>
+      <button class="tab" onclick="cambiarPeriodo('mes', this)">Por mes</button>
+    </div>
+    <canvas id="chart" height="90"></canvas>
+  </div>
+
+  <!-- Tablas -->
+  <div class="two-col">
+    <div class="section">
+      <h2>🏆 FAQs más consultadas</h2>
+      <table>
+        <thead><tr><th>#</th><th>Tema</th><th>Consultas</th></tr></thead>
+        <tbody id="tabla-faqs"><tr><td colspan="3" class="no-data">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>❓ Preguntas sin respuesta</h2>
+      <table>
+        <thead><tr><th>#</th><th>Pregunta</th><th>Veces</th></tr></thead>
+        <tbody id="tabla-no"><tr><td colspan="3" class="no-data">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+  let chart = null;
+  let periodos = null;
+
+  // ── Helpers ──────────────────────────────────────────────────
+  function fmt(n) { return Number(n).toLocaleString("es-AR"); }
+
+  function fmtLabel(tipo, val) {
+    if (tipo === "dia") {
+      const [y, m, d] = val.split("-");
+      return `${d}/${m}`;
+    }
+    if (tipo === "semana") {
+      // "2026-W39" → "Sem 39"
+      const [, w] = val.split("-W");
+      return `Sem ${w}`;
+    }
+    if (tipo === "mes") {
+      // "2026-09" → "Sep 26"
+      const meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+      const [y, m] = val.split("-");
+      return `${meses[parseInt(m)-1]} ${y.slice(2)}`;
+    }
+    return val;
+  }
+
+  // ── Carga de datos ────────────────────────────────────────────
+  async function cargar() {
+    try {
+      const [statusRes, statsRes] = await Promise.all([
+        fetch("/api/status"),
+        fetch("/api/stats"),
+      ]);
+      const status = await statusRes.json();
+      const stats  = await statsRes.json();
+
+      periodos = stats.periodos;
+
+      renderStatus(status);
+      renderCards(stats.resumen);
+      renderChart(stats.periodos.porDia, "dia");
+      renderTablaFaqs(stats.topFaqs);
+      renderTablaNo(stats.noRespondidos);
+
+      document.getElementById("updated").textContent =
+        "Última actualización: " + new Date().toLocaleTimeString("es-AR");
+    } catch (e) {
+      console.error("Error al cargar datos", e);
+    }
+  }
+
+  // ── Renders ───────────────────────────────────────────────────
+  function renderStatus(s) {
+    const dot = document.getElementById("dot");
+    const txt = document.getElementById("status-text");
+    if (s.online) {
+      dot.classList.add("online");
+      txt.textContent = "En línea";
+    } else {
+      dot.classList.remove("online");
+      txt.textContent = "Desconectado";
+    }
+  }
+
+  function renderCards(r) {
+    document.getElementById("c-total").textContent   = fmt(r.totalMensajes);
+    document.getElementById("c-usuarios").textContent = fmt(r.usuariosUnicos);
+    const pct = r.totalMensajes > 0
+      ? Math.round(r.sinRespuesta / r.totalMensajes * 100) + "%"
+      : "0%";
+    document.getElementById("c-sin").textContent    = pct;
+    document.getElementById("c-hoy").textContent    = fmt(r.hoy);
+    document.getElementById("c-semana").textContent = fmt(r.estaSemana);
+    document.getElementById("c-mes").textContent    = fmt(r.esteMes);
+    document.getElementById("c-anio").textContent   = fmt(r.esteAnio);
+  }
+
+  function renderChart(data, tipo) {
+    const ctx = document.getElementById("chart").getContext("2d");
+    if (chart) chart.destroy();
+    const labels = data.map(d => fmtLabel(tipo, d.dia || d.semana || d.mes));
+    const values = data.map(d => d.total);
+    chart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: "rgba(26,86,219,0.75)",
+          borderRadius: 5,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} mensajes` } } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }
+    });
+  }
+
+  function cambiarPeriodo(tipo, btn) {
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    if (!periodos) return;
+    const map = { dia: periodos.porDia, semana: periodos.porSemana, mes: periodos.porMes };
+    renderChart(map[tipo], tipo);
+  }
+
+  function renderTablaFaqs(faqs) {
+    const tbody = document.getElementById("tabla-faqs");
+    if (!faqs.length) { tbody.innerHTML = '<tr><td colspan="3" class="no-data">Sin datos todavía</td></tr>'; return; }
+    tbody.innerHTML = faqs.map((f, i) => `
+      <tr>
+        <td class="rank">${i + 1}</td>
+        <td>${f.faq_disparada}</td>
+        <td><span class="badge">${fmt(f.total)}</span></td>
+      </tr>
+    `).join("");
+  }
+
+  function renderTablaNo(items) {
+    const tbody = document.getElementById("tabla-no");
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="3" class="no-data">¡Sin preguntas sin responder! 🎉</td></tr>'; return; }
+    tbody.innerHTML = items.map((it, i) => {
+      const pregunta = it.pregunta.length > 55
+        ? it.pregunta.slice(0, 55) + "…"
+        : it.pregunta;
+      return `
+        <tr>
+          <td class="rank">${i + 1}</td>
+          <td title="${it.pregunta}">${pregunta}</td>
+          <td><span class="badge">${fmt(it.total)}</span></td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  // ── Iniciar y auto-refrescar cada 30 s ───────────────────────
+  cargar();
+  setInterval(cargar, 30000);
+</script>
+</body>
+</html>
