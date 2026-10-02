@@ -117,6 +117,24 @@ async function enviarRespuesta(sock, jid, respuesta) {
   }
 
   if (respuesta.tipo === "lista") {
+    // Si hay audio de bienvenida configurado, mandarlo primero como nota de voz
+    const audioUrl = process.env.PUBLIC_URL
+      ? `${process.env.PUBLIC_URL}/audio/felipebienvenida.mp3`
+      : null;
+
+    if (audioUrl) {
+      try {
+        await sock.sendMessage(jid, {
+          audio:    { url: audioUrl },
+          mimetype: "audio/mpeg",
+          ptt:      true,  // aparece como nota de voz, no como archivo
+        });
+        await new Promise((r) => setTimeout(r, 500));
+      } catch (e) {
+        // Si falla el audio, seguimos igual con el menú
+      }
+    }
+
     await sock.sendMessage(jid, {
       text:        respuesta.texto,
       footer:      respuesta.pie,

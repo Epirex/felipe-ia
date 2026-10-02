@@ -40,6 +40,9 @@ function basicAuth(req, res, next) {
 
 app.use(basicAuth);
 
+// ── Archivos estáticos (audio, imágenes, etc.) ────────────────
+app.use("/audio", express.static(path.join(__dirname, "public", "audio")));
+
 // ── Dashboard HTML ────────────────────────────────────────────
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "dashboard.html"));
