@@ -4,6 +4,9 @@
   "description": "Chatbot de WhatsApp para responder preguntas frecuentes del municipio",
   "main": "index.js",
   "type": "commonjs",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "scripts": {
     "start": "node index.js"
   },
