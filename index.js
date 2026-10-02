@@ -10,7 +10,8 @@ const {
   DisconnectReason,
   fetchLatestBaileysVersion,
 } = require("@whiskeysockets/baileys");
-const qrcode = require("qrcode-terminal");
+const qrcode         = require("qrcode-terminal");
+const QRCode         = require("qrcode");          // genera imagen PNG del QR para el panel
 const pino = require("pino");
 const { faqs, bienvenida, noEntendido } = require("./faqs");
 const { registrarMensaje } = require("./db");
@@ -124,13 +125,19 @@ async function iniciarBot() {
     }
   }
 
-  sock.ev.on("connection.update", (update) => {
+  sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    // Mostrar QR solo si NO hay PHONE_NUMBER configurado (modo local/desarrollo)
-    if (qr && !PHONE_NUMBER) {
-      logger.info("Escaneá este QR con WhatsApp > Dispositivos vinculados:");
-      qrcode.generate(qr, { small: true });
+    if (qr) {
+      // Generar QR como imagen y guardarlo en el estado para el panel web
+      try {
+        botState.qrCode = await QRCode.toDataURL(qr, { width: 300, margin: 2 });
+        logger.info("📱 QR listo — abrí el panel en tu celular y escanealo desde /qr");
+      } catch (e) {
+        logger.error("No se pudo generar imagen del QR:", e.message);
+      }
+      // También mostrar en terminal (útil en desarrollo local)
+      if (!PHONE_NUMBER) qrcode.generate(qr, { small: true });
     }
 
     if (connection === "close") {
@@ -148,6 +155,7 @@ async function iniciarBot() {
     } else if (connection === "open") {
       botState.online      = true;
       botState.connectedAt = Date.now();
+      botState.qrCode      = null;  // ya no se necesita el QR
       logger.info("✅ Bot conectado y funcionando.");
     }
 
