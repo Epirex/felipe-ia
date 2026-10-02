@@ -13,6 +13,8 @@ const {
 const qrcode         = require("qrcode-terminal");
 const QRCode         = require("qrcode");          // genera imagen PNG del QR para el panel
 const pino = require("pino");
+const fs = require("fs");
+const path = require("path");
 const { faqs, bienvenida, noEntendido } = require("./faqs");
 const { registrarMensaje } = require("./db");
 const { iniciarPanel }     = require("./panel");
@@ -117,20 +119,19 @@ async function enviarRespuesta(sock, jid, respuesta) {
   }
 
   if (respuesta.tipo === "bienvenida") {
-    // Si hay audio de bienvenida configurado, mandarlo primero como nota de voz
-    const baseUrl  = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
-    const audioUrl = baseUrl ? `${baseUrl}/audio/felipebienvenida.mp3` : null;
+    // Mandar el audio de bienvenida leyendo el archivo local
+    const audioPath = path.join(__dirname, "public", "audio", "felipebienvenida.mp3");
 
-    if (audioUrl) {
+    if (fs.existsSync(audioPath)) {
       try {
         await sock.sendMessage(jid, {
-          audio:    { url: audioUrl },
-          mimetype: "audio/mpeg",
-          ptt:      true,  // aparece como nota de voz, no como archivo
+          audio:    { url: audioPath }, // Usa el archivo local directamente
+          mimetype: "audio/mp4",        // mp4 suele ser más compatible en WhatsApp
+          ptt:      false,              // false: lo manda como archivo de audio (funciona en iOS/Android). Si es true, exige que el archivo sea Opus (.ogg) y falla en celulares.
         });
         await new Promise((r) => setTimeout(r, 500));
       } catch (e) {
-        // Si falla el audio, seguimos igual con el menú
+        logger.error("Error al enviar el audio:", e.message);
       }
     }
 
