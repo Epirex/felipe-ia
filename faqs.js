@@ -1,18 +1,16 @@
 // ============================================================
 // BASE DE PREGUNTAS FRECUENTES DEL MUNICIPIO
 // ============================================================
-// Edita este archivo con la info real de tu municipio.
 // Cada entrada tiene:
-//   - keywords: palabras que, si aparecen en el mensaje del usuario,
-//               disparan esa respuesta (no hace falta que sea exacto).
-//   - respuesta: el texto que se le envía al usuario.
+//   - palabras_clave: si alguna aparece en el mensaje, se usa esa respuesta.
+//   - respuesta: puede ser un string (texto simple) o un objeto especial:
+//       { tipo: "ubicacion", ... }   → manda pin de ubicación en el mapa
 // El bot revisa las entradas en orden y usa la primera que matchee.
 // ============================================================
 
 // NOTA: las entradas de "quien sos" / "quien te hizo" y "como estas" a
-// propósito NO figuran en el texto de "bienvenida" de más abajo. Siguen
-// funcionando si alguien pregunta directamente, pero no se muestran como
-// opción del menú principal.
+// propósito NO figuran en el texto de "bienvenida". Siguen funcionando
+// si alguien pregunta directamente, pero no se muestran en el menú.
 
 const faqs = [
   {
@@ -21,9 +19,16 @@ const faqs = [
       "🕐 *Horario de atención*\nLunes a viernes de 7:00 a 13:00 hs.\nSábados, domingos y feriados: cerrado.",
   },
   {
-    palabras_clave: ["direccion", "ubicacion", "donde queda", "donde esta", "domicilio"],
-    respuesta:
-      "📍 *Ubicación*\nAv. Presidente Castillo 441, Valle Viejo, Catamarca.\nVer en el mapa: https://share.google/vKa3SxGitliz61W7e",
+    // Respuesta especial: manda ubicación en el mapa + texto
+    palabras_clave: ["direccion", "ubicacion", "donde queda", "donde esta", "domicilio", "como llego", "llegar"],
+    respuesta: {
+      tipo: "ubicacion",
+      latitud: -28.44927,
+      longitud: -65.72571,
+      nombre: "Municipalidad de Valle Viejo",
+      direccion: "Av. Presidente Castillo 441, Valle Viejo, Catamarca",
+      texto: "📍 *Ubicación*\nAv. Presidente Castillo 441, Valle Viejo, Catamarca.\n\nTe comparto el pin en el mapa 👇",
+    },
   },
   {
     palabras_clave: ["turno", "turnos", "sacar turno", "reservar turno"],
@@ -60,7 +65,7 @@ const faqs = [
     respuesta:
       "💰 *Pagos e impuestos*\nPodés pagar tus tasas municipales online en:\nhttps://valleviejo.gob.ar/rentas/\n\nO en las cajas habilitadas de lunes a viernes de 7:00 a 13:00 hs.",
   },
-  // ---- Estas dos NO aparecen en el menú, solo responden si preguntan directo ----
+  // ---- Estas NO aparecen en el menú, solo responden si preguntan directo ----
   {
     palabras_clave: ["quien sos", "quien eres", "como te llamas", "tu nombre", "eres un bot", "sos un bot"],
     respuesta:
@@ -71,7 +76,6 @@ const faqs = [
     respuesta:
       "👨‍💻 Fui creado por Esteban Guzzo en la Oficina de Modernización de la Municipalidad de Valle Viejo.",
   },
-  // ---- Tampoco aparece en el menú, solo responde si preguntan directo ----
   {
     palabras_clave: ["como estas", "como andas", "que tal", "todo bien", "como va"],
     respuesta:
@@ -79,22 +83,39 @@ const faqs = [
   },
 ];
 
-// Mensaje de bienvenida / menú principal
-const bienvenida =
-  "👋 ¡Hola! Soy *Felipe IA*, el asistente virtual del *Municipio* de Valle Viejo.\n\n" +
-  "Puedo ayudarte con:\n" +
-  "• Horarios de atención\n" +
-  "• Ubicación\n" +
-  "• Turnos (licencia de conducir, camión atmosférico)\n" +
-  "• Contacto\n" +
-  "• Trámites\n" +
-  "• Reclamos\n" +
-  "• Pagos e impuestos\n\n" +
-  "Escribime tu consulta con tus propias palabras 🙂";
+// ── Menú de bienvenida como lista interactiva ─────────────────
+// Se envía cuando el usuario saluda o escribe "menú" / "ayuda".
+const bienvenida = {
+  tipo: "lista",
+  texto: "👋 ¡Hola! Soy *Felipe IA*, el asistente virtual del *Municipio de Valle Viejo*.\n\n¿En qué puedo ayudarte hoy?",
+  pie: "Municipalidad de Valle Viejo",
+  boton: "📋 Ver opciones",
+  secciones: [
+    {
+      titulo: "Trámites y servicios",
+      filas: [
+        { id: "licencia",      titulo: "🚗 Licencia de conducir",    descripcion: "Requisitos y turno online" },
+        { id: "turno camion",  titulo: "🚛 Camión atmosférico",      descripcion: "Solicitar turno de desagote" },
+        { id: "tramites",      titulo: "📄 Trámites",                descripcion: "Consultas sobre trámites municipales" },
+        { id: "reclamo",       titulo: "📢 Reclamos",                descripcion: "Baches, alumbrado, residuos, etc." },
+        { id: "impuesto",      titulo: "💰 Pagos e impuestos",       descripcion: "Pagar tasas municipales" },
+      ],
+    },
+    {
+      titulo: "Información general",
+      filas: [
+        { id: "horario",    titulo: "🕐 Horarios de atención",  descripcion: "Cuándo atiende la municipalidad" },
+        { id: "ubicacion",  titulo: "📍 Ubicación",             descripcion: "Cómo llegar a la municipalidad" },
+        { id: "contacto",   titulo: "📞 Contacto",              descripcion: "Teléfono y redes sociales" },
+      ],
+    },
+  ],
+};
 
 // Mensaje cuando no se entiende la consulta
 const noEntendido =
   "🤔 No tengo una respuesta para eso todavía.\n" +
-  "Probá preguntando por: *horarios*, *dirección*, *contacto*, *trámites*, *reclamo* o *pagos*.";
+  "Probá preguntando por: *horarios*, *dirección*, *contacto*, *trámites*, *reclamo* o *pagos*.\n\n" +
+  "O escribí *menú* para ver todas las opciones.";
 
 module.exports = { faqs, bienvenida, noEntendido };

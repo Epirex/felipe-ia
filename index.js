@@ -91,6 +91,53 @@ function buscarRespuesta(mensaje) {
   return { respuesta: noEntendido, faq: null, respondido: false };
 }
 
+// ── Despachador de respuestas según tipo ─────────────────────
+// Soporta: string (texto), { tipo: "ubicacion", ... }, { tipo: "lista", ... }
+async function enviarRespuesta(sock, jid, respuesta) {
+  if (typeof respuesta === "string") {
+    await sock.sendMessage(jid, { text: respuesta });
+    return;
+  }
+
+  if (respuesta.tipo === "ubicacion") {
+    // Primero el texto introductorio, luego el pin
+    if (respuesta.texto) {
+      await sock.sendMessage(jid, { text: respuesta.texto });
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    await sock.sendMessage(jid, {
+      location: {
+        degreesLatitude:  respuesta.latitud,
+        degreesLongitude: respuesta.longitud,
+        name:    respuesta.nombre,
+        address: respuesta.direccion,
+      },
+    });
+    return;
+  }
+
+  if (respuesta.tipo === "lista") {
+    await sock.sendMessage(jid, {
+      text:        respuesta.texto,
+      footer:      respuesta.pie,
+      title:       "",
+      buttonText:  respuesta.boton,
+      sections:    respuesta.secciones.map((s) => ({
+        title: s.titulo,
+        rows:  s.filas.map((f) => ({
+          id:          f.id,
+          title:       f.titulo,
+          description: f.descripcion || "",
+        })),
+      })),
+    });
+    return;
+  }
+
+  // Fallback: convertir a string por si acaso
+  await sock.sendMessage(jid, { text: String(respuesta) });
+}
+
 // El panel web solo debe iniciarse una vez, no en cada reconexión de WhatsApp
 let panelIniciado = false;
 
@@ -166,7 +213,7 @@ async function iniciarBot() {
     if (type !== "notify") return;
 
     const msg = messages[0];
-    if (!msg.message || msg.key.fromMe) return; // ignora mensajes propios y vacíos
+    if (!msg.message || msg.key.fromMe) return;
 
     // Solo responder en chats individuales, no en grupos
     const esGrupo = msg.key.remoteJid?.endsWith("@g.us");
@@ -180,9 +227,11 @@ async function iniciarBot() {
       return;
     }
 
+    // Captura texto normal Y selecciones de lista interactiva
     const texto =
       msg.message.conversation ||
       msg.message.extendedTextMessage?.text ||
+      msg.message.listResponseMessage?.singleSelectReply?.selectedRowId ||
       msg.message.imageMessage?.caption ||
       "";
 
@@ -193,15 +242,13 @@ async function iniciarBot() {
     try {
       const { respuesta, faq, respondido } = buscarRespuesta(texto);
 
-      // Registrar en rate limiter y en base de datos
       registrarRespuesta(remitente);
       registrarMensaje({ jid: remitente, pregunta: texto, faqDisparada: faq, respondido });
 
-      // Simula "escribiendo..." para que se sienta más natural
       await sock.sendPresenceUpdate("composing", remitente);
       await new Promise((r) => setTimeout(r, 800));
 
-      await sock.sendMessage(remitente, { text: respuesta });
+      await enviarRespuesta(sock, remitente, respuesta);
       logger.info(`✉️  Respuesta enviada a ${remitente} [faq: ${faq || "sin match"}].`);
     } catch (err) {
       logger.error(`No se pudo enviar respuesta a ${remitente}:`, err.message);
