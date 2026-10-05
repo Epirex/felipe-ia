@@ -15,7 +15,7 @@ const QRCode         = require("qrcode");          // genera imagen PNG del QR p
 const pino = require("pino");
 const fs = require("fs");
 const path = require("path");
-const { faqs, submenus, bienvenida, noEntendido } = require("./faqs");
+const { faqs, charla, submenus, bienvenida, noEntendido } = require("./faqs");
 const { registrarMensaje } = require("./db");
 const { iniciarPanel }     = require("./panel");
 const botState             = require("./state");
@@ -80,8 +80,53 @@ function normalizar(texto) {
 const SUBMENU_TTL_MS = 10 * 60 * 1000;
 const submenuActivo = new Map();
 
+// Palabras que llevan de vuelta al menú principal
+const VOLVER = ["regresar", "retornar", "retomar", "retroceder", "volver", "atras"];
+
+// Palabras que NO son un nombre ("soy de Valle Viejo", "soy un vecino"...)
+const NO_NOMBRES = new Set([
+  "de", "del", "un", "una", "el", "la", "lo", "los", "las", "nuevo", "nueva", "vecino", "vecina",
+  "yo", "muy", "tu", "mi", "bot", "alguien", "persona", "empleado", "empleada", "estudiante",
+  "turista", "joven", "mayor", "papa", "mama", "no", "si", "para", "con", "en", "por", "que",
+]);
+
+function detectarNombre(mensaje) {
+  const m = mensaje.toLowerCase().match(/(?:^|\s)(?:soy|me llamo|mi nombre es|mi nombre|me dicen)\s+([\p{L}]{2,20})/u);
+  if (!m) return null;
+  const palabra = m[1];
+  if (NO_NOMBRES.has(normalizar(palabra))) return null;
+  return palabra.charAt(0).toUpperCase() + palabra.slice(1);
+}
+
+function elegir(respuesta) {
+  if (Array.isArray(respuesta)) return respuesta[Math.floor(Math.random() * respuesta.length)];
+  if (typeof respuesta === "function") return respuesta();
+  return respuesta;
+}
+
+// Charla casual: coincide por palabra/frase completa, no por substring
+function buscarCharla(texto) {
+  for (const item of charla) {
+    if (item.regex && item.regex.test(texto)) return item;
+    const match = item.palabras_clave.some((kw) => {
+      const k = normalizar(kw);
+      if (item.exacto) return texto === k;
+      return new RegExp(`(^|\\s)${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|\\s|[?!.,])`).test(texto);
+    });
+    if (match) return item;
+  }
+  return null;
+}
+
 function buscarRespuesta(mensaje, jid) {
   const texto = normalizar(mensaje);
+
+  // Volver al menú desde cualquier lado
+  const palabras = texto.split(/[^a-z0-9ñ]+/);
+  if (palabras.some((p) => VOLVER.includes(p))) {
+    submenuActivo.delete(jid);
+    return { respuesta: bienvenida, faq: "volver", respondido: true };
+  }
 
   // Si el usuario está dentro de un submenú y manda una opción válida
   const activo = submenuActivo.get(jid);
@@ -90,6 +135,17 @@ function buscarRespuesta(mensaje, jid) {
     if (opcion) {
       return { respuesta: opcion.respuesta, faq: `${activo.id}_${texto}`, respondido: true };
     }
+  }
+
+  // Se presentó con su nombre: "hola soy Esteban", "me llamo Ana"
+  const nombre = detectarNombre(mensaje);
+  if (nombre) {
+    submenuActivo.delete(jid);
+    return {
+      respuesta: `¡Hola ${nombre}! 😊 Un gusto. ¿Cómo estás?\n\nSoy *Felipe IA*, el asistente virtual del Municipio de Valle Viejo. Escribí *menú* para ver en qué puedo ayudarte.`,
+      faq: "nombre",
+      respondido: true,
+    };
   }
 
   if (SALUDOS.some((s) => texto === normalizar(s) || texto.includes(normalizar(s)))) {
@@ -111,6 +167,12 @@ function buscarRespuesta(mensaje, jid) {
       }
       return { respuesta: item.respuesta, faq: item.palabras_clave[0], respondido: true };
     }
+  }
+
+  // Ninguna FAQ del municipio: probar charla casual
+  const conv = buscarCharla(texto);
+  if (conv) {
+    return { respuesta: elegir(conv.respuesta), faq: `charla:${conv.palabras_clave[0] || "risa"}`, respondido: true };
   }
 
   return { respuesta: noEntendido, faq: null, respondido: false };
