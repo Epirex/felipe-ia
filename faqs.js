@@ -2,6 +2,96 @@
 // BASE DE PREGUNTAS FRECUENTES DEL MUNICIPIO
 // ============================================================
 
+// ── Submenús (el usuario elige con 1, 2, 3...) ────────────────
+const submenus = {
+  tramites: {
+    texto:
+      "📄 *Trámites disponibles*\n\n" +
+      "1. Camión atmosférico\n" +
+      "2. Licencia de conducir\n\n" +
+      "Escribí el número del trámite que necesitás, o *menú* para volver al inicio.",
+    opciones: {
+      "1": {
+        respuesta:
+          "🚛 *Camión atmosférico*\nSolicitá el camión atmosférico con este formulario:\nhttps://docs.google.com/forms/d/e/1FAIpQLSd4O0b_DSpWh2R40sjooIvErK437LNM2utHw_jMuj6HFHFqKw/viewform",
+      },
+      "2": {
+        respuesta: {
+          tipo: "documento",
+          texto: "🚗 *Licencia de conducir*\nEn este documento vas a encontrar todos los requisitos para la licencia 👇",
+          archivo: "licencia-conducir.pdf",
+          nombre: "Requisitos licencia de conducir.pdf",
+        },
+      },
+    },
+  },
+  turismo: {
+    texto:
+      "🏞️ *Turismo*\nValle Viejo tiene lugares hermosos para conocer 😍\n\n" +
+      "1. Hostería Cuesta del Portezuelo\n" +
+      "2. Cine Teatro Valle Viejo\n" +
+      "3. El Portal\n" +
+      "4. Paseo de los Artesanos\n\n" +
+      "Escribí el número del lugar que querés conocer, o *menú* para volver al inicio.",
+    opciones: {
+      "1": {
+        respuesta:
+          "🏔️ *Hostería Cuesta del Portezuelo*\n" +
+          "Ubicada en la cima de la tradicional Cuesta del Portezuelo, sobre la Ruta Provincial N° 42, en Valle Viejo.\n\n" +
+          "*Información general*\n" +
+          "• Contacto y reservas: Teléfono / WhatsApp +54 383 434-5564 (reservas obligatorias por WhatsApp).\n" +
+          "• Instagram: https://www.instagram.com/hosteriacuestaelportezuelo/\n\n" +
+          "*Servicios e instalaciones*\n" +
+          "• Alojamiento: 8 habitaciones dobles con aire acondicionado frío/calor, Wi-Fi, Smart TV, agua caliente y desayuno incluido.\n" +
+          "• Gastronomía: restaurante y cafetería abiertos todos los días (desayunos, almuerzos, meriendas buffet y cenas) con vistas panorámicas.\n\n" +
+          "*Actividades y experiencias*\n" +
+          "• Avistaje de cóndores\n" +
+          "• Trekking y senderismo (tramos de 13 km aprox.)\n" +
+          "• Eventos especiales: Wine Sunsets, ceremonias de Corpachada/Pachamama y competencias de trail.",
+      },
+      "2": {
+        respuesta:
+          "🎭 *Cine Teatro Valle Viejo*\n" +
+          "Ubicado frente a la tradicional Plaza del Aborigen.\n\n" +
+          "*Información general*\n" +
+          "• WhatsApp: +54 383 512-6036\n" +
+          "• Sitio web: https://cine.valleviejo.gob.ar/\n" +
+          "• Instagram: https://www.instagram.com/cineteatrovalleviejo/\n\n" +
+          "*Servicios e instalaciones*\n" +
+          "• Sala cerrada con capacidad para 214 butacas, con espacios reservados para personas con discapacidad (CUD) y baños adaptados.\n" +
+          "• Escenario de doble apertura: espectáculos en el auditorio interior o al aire libre hacia la plaza.\n" +
+          "• Pantalla de alta calidad con proyección 2D y 3D, y climatización frío/calor.\n\n" +
+          "*Actividades y experiencias*\n" +
+          "• Cine comercial e independiente: funciones habitualmente de jueves a domingos, con estrenos nacionales e internacionales.\n" +
+          "• Espectáculos en vivo: teatro infantil y para adultos, comedias y shows musicales.\n" +
+          "• Beneficios: promociones de 2x1 en días seleccionados y cupos gratuitos por función para personas con discapacidad.",
+      },
+      "3": {
+        respuesta:
+          "🛒 *El Portal*\n" +
+          "Un mercado de compras integral, familiar y de precios mayoristas para consumidores minoristas.\n\n" +
+          "• Dirección: Av. Presidente Castillo esquina Horacio Brunello (frente a Cotali)\n" +
+          "• Horarios: todos los sábados de 09:00 a 18:00 hs.\n" +
+          "• Rubros: carnicería, pollería, lácteos, pastas, frutas, verduras, bebidas, productos sin TACC y artículos de limpieza.\n" +
+          "• Instagram: https://www.instagram.com/portalvalleviejo/",
+      },
+      "4": {
+        respuesta:
+          "🎨 *Paseo de los Artesanos*\n" +
+          "Ubicado en la Plaza El Aborigen.\n\n" +
+          "• Días y horarios: sábados y domingos por la tarde.\n\n" +
+          "*Servicios e instalaciones*\n" +
+          "• 24 stands fijos semicubiertos para los feriantes.\n" +
+          "• Integrado a la plaza con juegos infantiles, bancos y accesibilidad.\n" +
+          "• Rodeado de puestos con comidas rápidas y dulces regionales.\n\n" +
+          "*Actividades y experiencias*\n" +
+          "• Feria: venta directa de tejidos, cerámica, marroquinería y artesanías locales.\n" +
+          "• Eventos: shows folclóricos en vivo, danzas y celebraciones comunitarias.",
+      },
+    },
+  },
+};
+
 const faqs = [
   {
     palabras_clave: ["horario", "horarios", "atencion", "atienden", "abren", "cierran", "1"],
@@ -21,59 +111,79 @@ const faqs = [
     },
   },
   {
-    palabras_clave: ["turno", "turnos", "sacar turno", "reservar turno", "3"],
-    respuesta:
-      "📅 *Turnos*\n¿Qué turno necesitás sacar?\n\n🚗 *Licencia de conducir*: https://valleviejo.gob.ar/sitio_landing/licencias/\n\n🚛 *Camión atmosférico*: https://docs.google.com/forms/d/e/1FAIpQLSd4O0b_DSpWh2R40sjooIvErK437LNM2utHw_jMuj6HFHFqKw/viewform\n\n🤝 *Acción Social*: (⚠️ Falta completar link o info)",
+    // Abre el submenú de trámites
+    palabras_clave: ["tramite", "tramites", "documentacion", "requisitos", "papeles", "3"],
+    respuesta: { tipo: "submenu", id: "tramites", texto: submenus.tramites.texto },
   },
   {
-    palabras_clave: ["tramite", "tramites", "documentacion", "requisitos", "papeles", "4"],
-    respuesta:
-      "📄 *Trámites*\nContanos qué trámite necesitás hacer y te paso los datos correspondientes. También podés consultar en nuestra web: https://valleviejo.gob.ar/",
+    palabras_clave: ["camion atmosferico", "atmosferico"],
+    respuesta: submenus.tramites.opciones["1"].respuesta,
   },
   {
-    palabras_clave: ["reclamo", "reclamos", "denuncia", "queja", "bache", "baches", "alumbrado", "luz", "basura", "residuos", "arbol", "rama", "calle", "5"],
+    palabras_clave: ["licencia", "carnet", "registro de conducir"],
+    respuesta: submenus.tramites.opciones["2"].respuesta,
+  },
+  {
+    palabras_clave: ["reclamo", "reclamos", "denuncia", "queja", "bache", "baches", "alumbrado", "luz", "basura", "residuos", "arbol", "rama", "calle", "4"],
     respuesta:
       "📢 *Reclamos*\nCargá tu reclamo (alumbrado, limpieza, baches, etc.) completando este formulario:\nhttps://docs.google.com/forms/d/e/1FAIpQLSf01unpuwhlhJeduWUKxz1hdW2sOpPTcHbkkPbfg9yRkgb8kQ/viewform",
   },
   {
-    palabras_clave: ["impuesto", "impuestos", "tasa", "tasas", "pagar", "rentas", "6"],
+    palabras_clave: ["casa de la juventud", "juventud", "jovenes", "5"],
     respuesta:
-      "💰 *Pagos e impuestos*\nPodés pagar tus tasas municipales online en:\nhttps://valleviejo.gob.ar/rentas/\n\nO en las cajas habilitadas de lunes a viernes de 7:00 a 13:00 hs.",
+      "🏠 *Casa de la Juventud*\n" +
+      "Es un espacio municipal de encuentro, capacitación y contención destinado a los jóvenes del departamento, ubicado en Padre Esquiú 194, San Isidro, Catamarca.\n\n" +
+      "*Información general*\n" +
+      "• Horarios de atención: lunes a viernes de 06:00 a 21:00 hs.\n" +
+      "• Teléfono / consultas: 3834 91-9763\n" +
+      "• Redes sociales: @soyjovenvalleviejo\n\n" +
+      "*Actividades y servicios*\n" +
+      "• Talleres gratuitos: propuestas recreativas, culturales y de formación (como ritmos urbanos y actividades comunitarias).\n" +
+      "• Programa \"Cuenta Conmigo\": dispositivo de escucha y acompañamiento en salud mental, gratuito, anónimo y confidencial.",
   },
   {
-    palabras_clave: ["casa de la juventud", "juventud", "jovenes", "7"],
+    palabras_clave: ["conviviendo", "programa conviviendo", "discapacidad", "6"],
     respuesta:
-      "🏠 *Casa de la Juventud*\n(⚠️ Falta completar información. Respondeme con los datos que querés que diga acá).",
+      "🤝 *Conviviendo*\n" +
+      "Es un espacio municipal de igualdad, inclusión y aprendizaje destinado a personas con discapacidad en Valle Viejo.\n\n" +
+      "*Información general*\n" +
+      "• Dirección: Hignio Rizo 136, Villa Dolores (frente a la Plaza Ramón S. Castillo).\n" +
+      "• Horarios de atención: lunes a viernes de 08:00 a 13:00 y de 15:00 a 20:00.\n" +
+      "• Actividades: talleres de sensibilización, capacitación laboral, inclusión educativa y propuestas recreativas o de reflexión comunitaria.",
   },
   {
-    palabras_clave: ["conviviendo", "programa conviviendo", "8"],
+    palabras_clave: ["medio ambiente", "ambiente", "ecologia", "reciclaje", "poda", "quema", "agua servida", "7"],
     respuesta:
-      "🤝 *Programa Conviviendo*\n(⚠️ Falta completar información. Respondeme con los datos que querés que diga acá).",
+      "🌿 *DIRECCIÓN DE MEDIO AMBIENTE*\n" +
+      "Ponemos a tu disposición nuestro número de WhatsApp para recibir:\n\n" +
+      "🚨 *RECLAMOS Y DENUNCIAS*\n" +
+      "• Podas ✂️\n" +
+      "• Agua servida 💧\n" +
+      "• Quemas 🔥\n" +
+      "• Y otros delitos ambientales 🍃\n\n" +
+      "📲 Escribinos al: 3834402116\n\n" +
+      "🕒 *Horario de atención:*\n" +
+      "• Mañana: 7:00 a 13:00 hs\n" +
+      "• Tarde: 14:00 a 20:00 hs",
   },
   {
-    palabras_clave: ["recoleccion", "basurero", "camion de basura", "recoleccion de residuos", "9"],
-    respuesta:
-      "🗑️ *Recolección de Residuos*\n(⚠️ Falta completar información sobre los días y horarios por barrio).",
+    // Abre el submenú de turismo
+    palabras_clave: ["turismo", "visitar", "pasear", "lugares", "8"],
+    respuesta: { tipo: "submenu", id: "turismo", texto: submenus.turismo.texto },
   },
   {
-    palabras_clave: ["medio ambiente", "ambiente", "ecologia", "reciclaje", "10"],
-    respuesta:
-      "🌱 *Medio Ambiente*\n(⚠️ Falta completar información. Respondeme con los datos que querés que diga acá).",
+    palabras_clave: ["posta", "postas", "postas sanitarias", "salud", "caps", "9"],
+    respuesta: {
+      tipo: "documento",
+      texto: "🏥 *Postas Sanitarias*\n¡Te comparto un documento con todas las postas sanitarias y su información! 👇",
+      archivo: "postas-sanitarias.pdf",
+      nombre: "Postas sanitarias Valle Viejo.pdf",
+    },
   },
   {
-    palabras_clave: ["turismo", "visitar", "pasear", "lugares", "11"],
+    palabras_clave: ["deporte", "deportes", "polideportivo", "canchas", "10"],
     respuesta:
-      "🏞️ *Turismo*\nValle Viejo tiene hermosos lugares para conocer. (⚠️ Falta completar información sobre atractivos o links de turismo).",
-  },
-  {
-    palabras_clave: ["posta", "postas", "postas sanitarias", "salud", "caps", "12"],
-    respuesta:
-      "🏥 *Postas Sanitarias*\n(⚠️ Falta completar información sobre ubicación y horarios de las postas).",
-  },
-  {
-    palabras_clave: ["deporte", "deportes", "polideportivo", "canchas", "13"],
-    respuesta:
-      "⚽ *Deporte*\n(⚠️ Falta completar información sobre actividades deportivas).",
+      "⚽ *Deporte*\nSeguí todas las novedades sobre el deporte en Valle Viejo en su Instagram oficial:\nhttps://www.instagram.com/deporte.valleviejo/",
   },
   {
     palabras_clave: ["contacto", "telefono", "numero", "llamar", "email", "correo"],
@@ -101,22 +211,19 @@ const faqs = [
 // ── Menú de bienvenida ────────────────────────────────────────
 const bienvenida = {
   tipo: "bienvenida",
-  texto: 
+  texto:
     "👋 ¡Hola! Soy *Felipe IA*, el asistente virtual del *Municipio de Valle Viejo*.\n\n" +
     "¿En qué puedo ayudarte? Escribí el número de la opción deseada o tu consulta:\n\n" +
-    "1️⃣ Horarios de atención\n" +
-    "2️⃣ Ubicación\n" +
-    "3️⃣ Turnos (Licencia, Atmosférico, Acción Social)\n" +
-    "4️⃣ Trámites\n" +
-    "5️⃣ Reclamos\n" +
-    "6️⃣ Pagos e impuestos\n" +
-    "7️⃣ Casa de la Juventud\n" +
-    "8️⃣ Conviviendo\n" +
-    "9️⃣ Recolección de residuos\n" +
-    "🔟 Medio Ambiente\n" +
-    "1️⃣1️⃣ Turismo\n" +
-    "1️⃣2️⃣ Postas Sanitarias\n" +
-    "1️⃣3️⃣ Deporte"
+    "1. Horarios de atención\n" +
+    "2. Ubicación\n" +
+    "3. Trámites\n" +
+    "4. Reclamos\n" +
+    "5. Casa de la Juventud\n" +
+    "6. Conviviendo\n" +
+    "7. Medio Ambiente\n" +
+    "8. Turismo\n" +
+    "9. Postas Sanitarias\n" +
+    "10. Deporte"
 };
 
 // Mensaje cuando no se entiende la consulta
@@ -124,4 +231,4 @@ const noEntendido =
   "🤔 No tengo una respuesta para eso todavía.\n\n" +
   "Escribí *menú* para ver todas las opciones disponibles.";
 
-module.exports = { faqs, bienvenida, noEntendido };
+module.exports = { faqs, submenus, bienvenida, noEntendido };

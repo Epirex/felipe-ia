@@ -15,7 +15,7 @@ const QRCode         = require("qrcode");          // genera imagen PNG del QR p
 const pino = require("pino");
 const fs = require("fs");
 const path = require("path");
-const { faqs, bienvenida, noEntendido } = require("./faqs");
+const { faqs, submenus, bienvenida, noEntendido } = require("./faqs");
 const { registrarMensaje } = require("./db");
 const { iniciarPanel }     = require("./panel");
 const botState             = require("./state");
@@ -76,16 +76,39 @@ function normalizar(texto) {
     .trim();
 }
 
-function buscarRespuesta(mensaje) {
+// Submenú activo por usuario: JID → { id, ts }. Expira a los 10 minutos.
+const SUBMENU_TTL_MS = 10 * 60 * 1000;
+const submenuActivo = new Map();
+
+function buscarRespuesta(mensaje, jid) {
   const texto = normalizar(mensaje);
 
+  // Si el usuario está dentro de un submenú y manda una opción válida
+  const activo = submenuActivo.get(jid);
+  if (activo && Date.now() - activo.ts < SUBMENU_TTL_MS) {
+    const opcion = submenus[activo.id].opciones[texto];
+    if (opcion) {
+      return { respuesta: opcion.respuesta, faq: `${activo.id}_${texto}`, respondido: true };
+    }
+  }
+
   if (SALUDOS.some((s) => texto === normalizar(s) || texto.includes(normalizar(s)))) {
+    submenuActivo.delete(jid);
     return { respuesta: bienvenida, faq: "bienvenida", respondido: true };
   }
 
   for (const item of faqs) {
-    const match = item.palabras_clave.some((kw) => texto.includes(normalizar(kw)));
+    const match = item.palabras_clave.some((kw) => {
+      const k = normalizar(kw);
+      // Los números solo valen si el mensaje es exactamente ese número
+      return /^\d+$/.test(k) ? texto === k : texto.includes(k);
+    });
     if (match) {
+      if (item.respuesta.tipo === "submenu") {
+        submenuActivo.set(jid, { id: item.respuesta.id, ts: Date.now() });
+      } else {
+        submenuActivo.delete(jid);
+      }
       return { respuesta: item.respuesta, faq: item.palabras_clave[0], respondido: true };
     }
   }
@@ -98,6 +121,31 @@ function buscarRespuesta(mensaje) {
 async function enviarRespuesta(sock, jid, respuesta) {
   if (typeof respuesta === "string") {
     await sock.sendMessage(jid, { text: respuesta });
+    return;
+  }
+  if (respuesta.tipo === "submenu") {
+    await sock.sendMessage(jid, { text: respuesta.texto });
+    return;
+  }
+
+  if (respuesta.tipo === "documento") {
+    if (respuesta.texto) {
+      await sock.sendMessage(jid, { text: respuesta.texto });
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    const docPath = path.join(__dirname, "public", "docs", respuesta.archivo);
+    if (fs.existsSync(docPath)) {
+      await sock.sendMessage(jid, {
+        document: { url: docPath },
+        mimetype: "application/pdf",
+        fileName: respuesta.nombre || respuesta.archivo,
+      });
+    } else {
+      logger.error(`Falta el archivo ${docPath}`);
+      await sock.sendMessage(jid, {
+        text: "⚠️ Por el momento no puedo enviarte el documento. Consultalo en la web: https://valleviejo.gob.ar/",
+      });
+    }
     return;
   }
 
@@ -246,7 +294,7 @@ async function iniciarBot() {
     logger.info(`📩 Mensaje de ${remitente}: ${texto}`);
 
     try {
-      const { respuesta, faq, respondido } = buscarRespuesta(texto);
+      const { respuesta, faq, respondido } = buscarRespuesta(texto, remitente);
 
       registrarRespuesta(remitente);
       registrarMensaje({ jid: remitente, pregunta: texto, faqDisparada: faq, respondido });
