@@ -128,6 +128,23 @@ async function enviarRespuesta(sock, jid, respuesta) {
     return;
   }
 
+  if (respuesta.tipo === "imagen") {
+    if (respuesta.texto) {
+      await sock.sendMessage(jid, { text: respuesta.texto });
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    const imgPath = path.join(__dirname, "public", "docs", respuesta.archivo);
+    if (fs.existsSync(imgPath)) {
+      await sock.sendMessage(jid, { image: { url: imgPath } });
+    } else {
+      logger.error(`Falta el archivo ${imgPath}`);
+      await sock.sendMessage(jid, {
+        text: "⚠️ Por el momento no puedo enviarte la imagen. Consultalo en la web: https://valleviejo.gob.ar/",
+      });
+    }
+    return;
+  }
+
   if (respuesta.tipo === "documento") {
     if (respuesta.texto) {
       await sock.sendMessage(jid, { text: respuesta.texto });

@@ -174,10 +174,9 @@ const faqs = [
   {
     palabras_clave: ["posta", "postas", "postas sanitarias", "salud", "caps", "9"],
     respuesta: {
-      tipo: "documento",
+      tipo: "imagen",
       texto: "🏥 *Postas Sanitarias*\n¡Te comparto un documento con todas las postas sanitarias y su información! 👇",
-      archivo: "postas-sanitarias.pdf",
-      nombre: "Postas sanitarias Valle Viejo.pdf",
+      archivo: "postas-sanitarias.jpg",
     },
   },
   {
