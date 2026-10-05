@@ -97,9 +97,9 @@ const submenus = {
 // Artesanos comparten la Plaza El Aborigen. Ajustar si hace falta más precisión.
 const pinesTurismo = {
   "1": { latitud: -28.48936, longitud: -65.60629, nombre: "Hostería Cuesta del Portezuelo", direccion: "Ruta Provincial N° 42, Cuesta del Portezuelo, Valle Viejo" },
-  "2": { latitud: -28.449,   longitud: -65.721,   nombre: "Cine Teatro Valle Viejo",         direccion: "Frente a la Plaza El Aborigen, Valle Viejo" },
+  "2": { latitud: -28.4491206, longitud: -65.7198046, nombre: "Cine Teatro Valle Viejo",         direccion: "Frente a la Plaza El Aborigen, Valle Viejo" },
   "3": { latitud: -28.43551, longitud: -65.71119, nombre: "El Portal",                       direccion: "Av. Presidente Castillo esq. Horacio Brunello, Valle Viejo" },
-  "4": { latitud: -28.449,   longitud: -65.721,   nombre: "Paseo de los Artesanos",          direccion: "Plaza El Aborigen, Valle Viejo" },
+  "4": { latitud: -28.4491094, longitud: -65.7202028, nombre: "Paseo de los Artesanos",          direccion: "Plaza El Aborigen, Valle Viejo" },
 };
 for (const [k, pin] of Object.entries(pinesTurismo)) {
   const op = submenus.turismo.opciones[k];
@@ -147,7 +147,7 @@ const faqs = [
       "📢 *Reclamos*\nCargá tu reclamo (alumbrado, limpieza, baches, etc.) completando este formulario:\nhttps://docs.google.com/forms/d/e/1FAIpQLSf01unpuwhlhJeduWUKxz1hdW2sOpPTcHbkkPbfg9yRkgb8kQ/viewform",
   },
   {
-    palabras_clave: ["casa de la juventud", "juventud", "jovenes", "5"],
+    palabras_clave: ["casa de la juventud", "juventud", "jovenes", "8"],
     respuesta:
       "🏠 *Casa de la Juventud*\n" +
       "Es un espacio municipal de encuentro, capacitación y contención destinado a los jóvenes del departamento, ubicado en Padre Esquiú 194, San Isidro, Catamarca.\n\n" +
@@ -160,7 +160,7 @@ const faqs = [
       "• Programa \"Cuenta Conmigo\": dispositivo de escucha y acompañamiento en salud mental, gratuito, anónimo y confidencial.",
   },
   {
-    palabras_clave: ["conviviendo", "programa conviviendo", "discapacidad", "6"],
+    palabras_clave: ["conviviendo", "programa conviviendo", "discapacidad", "9"],
     respuesta:
       "🤝 *Conviviendo*\n" +
       "Es un espacio municipal de igualdad, inclusión y aprendizaje destinado a personas con discapacidad en Valle Viejo.\n\n" +
@@ -186,11 +186,11 @@ const faqs = [
   },
   {
     // Abre el submenú de turismo
-    palabras_clave: ["turismo", "visitar", "pasear", "lugares", "8"],
+    palabras_clave: ["turismo", "visitar", "pasear", "lugares", "5"],
     respuesta: { tipo: "submenu", id: "turismo", texto: submenus.turismo.texto },
   },
   {
-    palabras_clave: ["posta", "postas", "postas sanitarias", "salud", "caps", "9"],
+    palabras_clave: ["posta", "postas", "postas sanitarias", "salud", "caps", "10"],
     respuesta: {
       tipo: "imagen",
       texto: "🏥 *Postas Sanitarias*\n¡Te comparto un documento con todas las postas sanitarias y su información! 👇",
@@ -198,9 +198,17 @@ const faqs = [
     },
   },
   {
-    palabras_clave: ["deporte", "deportes", "polideportivo", "canchas", "10"],
+    palabras_clave: ["deporte", "deportes", "polideportivo", "canchas", "6"],
     respuesta:
       "⚽ *Deporte*\nSeguí todas las novedades sobre el deporte en Valle Viejo en su Instagram oficial:\nhttps://www.instagram.com/deporte.valleviejo/",
+  },
+  {
+    palabras_clave: ["saludo especial", "saludo", "audio", "mensaje especial", "11"],
+    respuesta: {
+      tipo: "audio",
+      texto: "🎙️ *Saludo especial*\nEste es un saludo de Felipe IA para vos 👇",
+      archivo: "felipebienvenida.ogg",
+    },
   },
   {
     palabras_clave: ["contacto", "telefono", "numero", "llamar", "email", "correo"],
@@ -211,7 +219,7 @@ const faqs = [
   {
     palabras_clave: ["quien sos", "quien eres", "como te llamas", "tu nombre", "eres un bot", "sos un bot"],
     respuesta:
-      "🤖 Soy *Felipe IA*, un asistente virtual inspirado en Felipe Varela. Estoy diseñado para ayudarte en todo lo que necesites sobre el Municipio de Valle Viejo.",
+      "🤖 Soy *Felipe*, un asistente virtual inspirado en Felipe Varela. Estoy diseñado para ayudarte en todo lo que necesites sobre el Municipio de Valle Viejo.",
   },
   {
     palabras_clave: ["quien te hizo", "quien te creo", "quien te programo", "quien te desarrollo"],
@@ -290,7 +298,7 @@ const charla = [
   },
   {
     palabras_clave: ["que hora es", "que hora son", "me decis la hora", "hora actual"],
-    respuesta: () => `🕐 Son las ${hoyAR({ hour: "2-digit", minute: "2-digit" })} hs en Catamarca.`,
+    respuesta: () => `🕐 Son las ${hoyAR({ hour: "2-digit", minute: "2-digit" })} hs en Valle Viejo.`,
   },
   {
     palabras_clave: ["que dia es", "que fecha es", "fecha de hoy", "que dia es hoy", "a cuanto estamos"],
@@ -311,12 +319,29 @@ const charla = [
     ],
   },
   {
-    palabras_clave: ["curiosidad", "dato curioso", "contame algo", "decime algo", "sabias que", "algo interesante", "contame algo interesante"],
+    palabras_clave: [
+      "dato", "datos", "un dato", "dato curioso", "datos curiosos", "dato random", "dato interesante",
+      "decime un dato", "dime un dato", "dame un dato", "tirame un dato", "pasame un dato", "otro dato", "mas datos",
+      "dato de valle viejo", "datos de valle viejo", "dato sobre valle viejo", "datos sobre valle viejo",
+      "curiosidad", "curiosidades", "una curiosidad", "alguna curiosidad", "curiosidad de valle viejo", "curiosidades de valle viejo",
+      "sabias que", "sabes algo", "sabes algo de valle viejo", "algo interesante", "algo curioso", "algo copado",
+      "contame algo", "contame algo interesante", "contame algo de valle viejo", "decime algo", "decime algo de valle viejo",
+      "dime algo", "cuentame algo", "sorprendeme", "sorprendeme con algo", "fun fact",
+      "algo de valle viejo", "sabes algo de valle", "que sabes de valle viejo", "conta algo de valle viejo",
+      "hecho curioso", "dato util", "otra curiosidad",
+    ],
     respuesta: [
-      "💡 Dato curioso: Valle Viejo se llamó así porque fue uno de los primeros asentamientos del valle de Catamarca. ¡Tiene mucha historia! 🏞️",
-      "💡 ¿Sabías que desde la Cuesta del Portezuelo se pueden avistar cóndores? 🦅 Mirá la opción *Turismo* del menú.",
-      "💡 Los pulpos tienen tres corazones. 🐙 ¡Nada que ver con Valle Viejo, pero me encanta el dato!",
-      "💡 La miel es el único alimento que no se echa a perder. 🍯",
+      "💡 *Dato curioso:* el Cine Teatro Valle Viejo tiene un escenario de doble apertura: los espectáculos pueden verse tanto en la sala interior como al aire libre, hacia la Plaza El Aborigen. 🎭",
+      "💡 *¿Sabías que…?* Desde la Hostería Cuesta del Portezuelo se hace avistaje de cóndores y hay senderos de trekking de unos 13 km. 🦅 Mirá la opción *Turismo* del menú.",
+      "💡 *Dato curioso:* el Monumento al Aborigen, frente a la plaza del mismo nombre, fue inaugurado en 1998 y rinde homenaje a culturas originarias como los Motimogastas, Polcos y Autigastas. 🗿",
+      "💡 *¿Sabías que…?* Todos los sábados, de 9 a 18 hs, El Portal funciona como un mercado con precios mayoristas para consumidores minoristas. 🛒",
+      "💡 *Dato curioso:* el Paseo de los Artesanos tiene 24 stands fijos semicubiertos, con tejidos, cerámica, marroquinería y artesanías locales. 🎨",
+      "💡 *¿Sabías que…?* En la Casa de la Juventud funciona “Cuenta Conmigo”, un servicio de escucha y acompañamiento en salud mental, gratuito, anónimo y confidencial. 💙",
+      "💡 *Dato curioso:* el Cine Teatro Valle Viejo tiene 214 butacas, pantalla preparada para 2D y 3D, y cupos gratuitos por función para personas con discapacidad. 🎬",
+      "💡 *¿Sabías que…?* Conviviendo es un espacio municipal de inclusión que ofrece talleres de sensibilización y capacitación laboral para personas con discapacidad. 🤝",
+      "💡 *Dato curioso:* la Dirección de Medio Ambiente recibe denuncias por WhatsApp (podas, quemas, agua servida y más) al 3834402116. 🌿",
+      "💡 *¿Sabías que…?* Podés conocer el Cine Teatro, el Paseo de los Artesanos y la Plaza El Aborigen en una misma tarde: están todos juntos. 🌳",
+      "💡 *Dato curioso:* mi nombre rinde homenaje a Felipe Varela, caudillo catamarqueño nacido en Huillapima. 🇦🇷",
     ],
   },
   {
@@ -369,18 +394,19 @@ const charla = [
 const bienvenida = {
   tipo: "bienvenida",
   texto:
-    "👋 ¡Hola! Soy *Felipe IA*, el asistente virtual del *Municipio de Valle Viejo*.\n\n" +
+    "👋 ¡Hola! Soy *Felipe*, el asistente virtual del *Municipio de Valle Viejo*.\n\n" +
     "¿En qué puedo ayudarte? Escribí el número de la opción deseada o tu consulta:\n\n" +
     "1. Horarios de atención\n" +
     "2. Ubicación\n" +
     "3. Trámites\n" +
     "4. Reclamos\n" +
-    "5. Casa de la Juventud\n" +
-    "6. Conviviendo\n" +
+    "5. Turismo\n" +
+    "6. Deporte\n" +
     "7. Medio Ambiente\n" +
-    "8. Turismo\n" +
-    "9. Postas Sanitarias\n" +
-    "10. Deporte"
+    "8. Casa de la Juventud\n" +
+    "9. Conviviendo\n" +
+    "10. Postas Sanitarias\n" +
+    "11. Saludo especial"
 };
 
 // Mensaje cuando no se entiende la consulta

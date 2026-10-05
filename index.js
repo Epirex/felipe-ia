@@ -246,24 +246,30 @@ async function enviarRespuesta(sock, jid, respuesta) {
   }
 
   if (respuesta.tipo === "bienvenida") {
-    // Mandar el audio de bienvenida leyendo el archivo local
-    const audioPath = path.join(__dirname, "public", "audio", "felipebienvenida.ogg");
+    // Solo el texto del menú (el audio ahora se manda con la opción "Saludo especial")
+    await sock.sendMessage(jid, { text: respuesta.texto });
+    return;
+  }
 
+  if (respuesta.tipo === "audio") {
+    if (respuesta.texto) {
+      await sock.sendMessage(jid, { text: respuesta.texto });
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    const audioPath = path.join(__dirname, "public", "audio", respuesta.archivo);
     if (fs.existsSync(audioPath)) {
       try {
         await sock.sendMessage(jid, {
           audio:    { url: audioPath },
-          mimetype: "audio/ogg; codecs=opus", 
+          mimetype: "audio/ogg; codecs=opus",
           ptt:      true,  // Se manda como nota de voz (el formato OGG Opus es nativo y lo soportan todos los celulares)
         });
-        await new Promise((r) => setTimeout(r, 500));
       } catch (e) {
         logger.error("Error al enviar el audio:", e.message);
       }
+    } else {
+      logger.error(`Falta el archivo ${audioPath}`);
     }
-
-    // Luego enviamos el texto del menú
-    await sock.sendMessage(jid, { text: respuesta.texto });
     return;
   }
 
