@@ -190,6 +190,15 @@ const faqs = [
     respuesta: { tipo: "submenu", id: "turismo", texto: submenus.turismo.texto },
   },
   {
+    // Va ANTES de Postas: "saludo" contiene "salud", que es palabra clave de Postas
+    palabras_clave: ["saludo especial", "saludo", "audio", "mensaje especial", "11"],
+    respuesta: {
+      tipo: "audio",
+      texto: "🎙️ *Saludo especial*\nEste es un saludo de Felipe IA para vos 👇",
+      archivo: "felipebienvenida.ogg",
+    },
+  },
+  {
     palabras_clave: ["posta", "postas", "postas sanitarias", "salud", "caps", "10"],
     respuesta: {
       tipo: "imagen",
@@ -201,14 +210,6 @@ const faqs = [
     palabras_clave: ["deporte", "deportes", "polideportivo", "canchas", "6"],
     respuesta:
       "⚽ *Deporte*\nSeguí todas las novedades sobre el deporte en Valle Viejo en su Instagram oficial:\nhttps://www.instagram.com/deporte.valleviejo/",
-  },
-  {
-    palabras_clave: ["saludo especial", "saludo", "audio", "mensaje especial", "11"],
-    respuesta: {
-      tipo: "audio",
-      texto: "🎙️ *Saludo especial*\nEste es un saludo de Felipe IA para vos 👇",
-      archivo: "felipebienvenida.ogg",
-    },
   },
   {
     palabras_clave: ["contacto", "telefono", "numero", "llamar", "email", "correo"],

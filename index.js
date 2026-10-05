@@ -31,7 +31,8 @@ const PHONE_NUMBER = process.env.PHONE_NUMBER || null;
 
 // Rate limiting: un usuario debe esperar COOLDOWN_MS entre respuestas
 // para evitar que el bot responda en bucle o sea abusado.
-const COOLDOWN_MS = 5000; // 5 segundos
+// En 0 = desactivado (los mensajes seguidos se responden siempre).
+const COOLDOWN_MS = 0;
 
 // ── Logs con fecha/hora ───────────────────────────────────────
 function log(nivel, ...args) {
