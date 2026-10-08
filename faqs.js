@@ -20,6 +20,7 @@ const submenus = {
           tipo: "documento",
           texto: "🚗 *Licencia de conducir*\nEn este documento vas a encontrar todos los requisitos para la licencia 👇",
           archivo: "licencia-conducir.pdf",
+          miniatura: "licencia-conducir-preview.jpg",
           nombre: "Requisitos licencia de conducir.pdf",
         },
       },
@@ -195,7 +196,7 @@ const faqs = [
     respuesta: {
       tipo: "audio",
       texto: "🎙️ *Saludo especial*\nEste es un saludo de Felipe IA para vos 👇",
-      archivo: "felipebienvenida.ogg",
+      archivo: "felipesaludo.ogg",
     },
   },
   {

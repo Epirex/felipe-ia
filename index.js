@@ -215,11 +215,17 @@ async function enviarRespuesta(sock, jid, respuesta) {
     }
     const docPath = path.join(__dirname, "public", "docs", respuesta.archivo);
     if (fs.existsSync(docPath)) {
-      await sock.sendMessage(jid, {
+      const msg = {
         document: { url: docPath },
         mimetype: "application/pdf",
         fileName: respuesta.nombre || respuesta.archivo,
-      });
+      };
+      // Vista previa (miniatura) del PDF
+      if (respuesta.miniatura) {
+        const thumbPath = path.join(__dirname, "public", "docs", respuesta.miniatura);
+        if (fs.existsSync(thumbPath)) msg.jpegThumbnail = fs.readFileSync(thumbPath);
+      }
+      await sock.sendMessage(jid, msg);
     } else {
       logger.error(`Falta el archivo ${docPath}`);
       await sock.sendMessage(jid, {
