@@ -19,6 +19,7 @@ const { faqs, charla, submenus, bienvenida, noEntendido } = require("./faqs");
 const { registrarMensaje } = require("./db");
 const { iniciarPanel }     = require("./panel");
 const botState             = require("./state");
+const { notificarAlerta }  = require("./alertas");
 
 // ── Configuración ────────────────────────────────────────────
 // Carpeta donde Baileys guarda la sesión de WhatsApp
@@ -286,8 +287,9 @@ async function enviarRespuesta(sock, jid, respuesta) {
 
 // El panel web solo debe iniciarse una vez, no en cada reconexión de WhatsApp
 let panelIniciado = false;
+let checkConexionInterval = null;
 
-async function iniciarBot() {
+async function iniciarBot(intentosReconexion = 0) {
   // Guarda la sesión en la carpeta ./auth para no tener que escanear
   // el QR cada vez que reinicies el bot.
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
@@ -336,23 +338,55 @@ async function iniciarBot() {
     if (connection === "close") {
       botState.online      = false;
       botState.connectedAt = null;
+      botState.ultimaDesconexion = Date.now();
+      
       const motivo = lastDisconnect?.error?.output?.statusCode;
+      botState.motivoDesconexion = motivo;
+      
       const debeReconectar = motivo !== DisconnectReason.loggedOut;
+      botState.sesionCerrada = !debeReconectar;
+
       logger.warn(`❌ Conexión cerrada. Código: ${motivo} | Reconectar: ${debeReconectar}`);
+      
       if (debeReconectar) {
-        logger.info("Intentando reconectar...");
-        iniciarBot();
+        const tiempos = [2000, 5000, 10000, 30000, 60000];
+        const espera = tiempos[Math.min(intentosReconexion, tiempos.length - 1)];
+        logger.info(`Intentando reconectar en ${espera / 1000}s (Intento ${intentosReconexion + 1})...`);
+        
+        setTimeout(() => {
+          iniciarBot(intentosReconexion + 1);
+        }, espera);
       } else {
         logger.error("🔒 Sesión cerrada. Borrá la carpeta 'auth' y reiniciá el servicio en Railway.");
+        notificarAlerta("loggedOut", "🔒 Sesión de WhatsApp cerrada. Se requiere escanear el QR de nuevo. Entrá a /qr en el panel admin.", logger);
       }
     } else if (connection === "open") {
+      if (!botState.online && intentosReconexion > 0) {
+        notificarAlerta("recuperacion", "✅ Felipe IA volvió a estar en línea tras desconexión.", logger);
+      }
       botState.online      = true;
       botState.connectedAt = Date.now();
       botState.qrCode      = null;  // ya no se necesita el QR
+      botState.ultimaDesconexion = null;
+      botState.motivoDesconexion = null;
+      botState.sesionCerrada = false;
+      intentosReconexion = 0; // reset
       logger.info("✅ Bot conectado y funcionando.");
     }
 
   });
+  
+  // Revisión periódica de desconexión prologada
+  if (!checkConexionInterval) {
+    checkConexionInterval = setInterval(() => {
+      if (!botState.online && botState.ultimaDesconexion) {
+        const caidaMs = Date.now() - botState.ultimaDesconexion;
+        if (caidaMs > 5 * 60 * 1000) { // 5 minutos
+          notificarAlerta("caida_prolongada", `⚠️ Felipe IA lleva más de 5 minutos desconectado. Reintentando reconexión internamente.`, logger);
+        }
+      }
+    }, 60000);
+  }
 
   // ── Escucha de mensajes entrantes ────────────────────────────
   sock.ev.on("messages.upsert", async ({ messages, type }) => {

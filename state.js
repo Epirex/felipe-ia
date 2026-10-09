@@ -4,4 +4,7 @@ module.exports = {
   online: false,
   connectedAt: null,
   qrCode: null,      // data URI del QR actual (null si ya está conectado)
+  ultimaDesconexion: null,
+  motivoDesconexion: null,
+  sesionCerrada: false,
 };

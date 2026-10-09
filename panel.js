@@ -6,6 +6,7 @@
 
 const express = require("express");
 const path    = require("path");
+const crypto  = require("crypto");
 const {
   getResumenTotal,
   getTopFaqs,
@@ -16,24 +17,91 @@ const botState = require("./state");
 
 // ── Configuración ─────────────────────────────────────────────
 // Definí ADMIN_USER y ADMIN_PASS en las variables de entorno de Railway.
-const ADMIN_USER = process.env.ADMIN_USER || "admin";
-const ADMIN_PASS = process.env.ADMIN_PASS || "felipeia2025";
+let ADMIN_USER = process.env.ADMIN_USER;
+let ADMIN_PASS = process.env.ADMIN_PASS;
 const PORT       = process.env.PORT || 3000;
 
 const app = express();
 
+// ── Seguridad (Prevención XSS y Clickjacking) ─────────────────
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src fonts.gstatic.com; img-src 'self' data:;"
+  );
+  next();
+});
+
+app.set("trust proxy", 1); // Necesario para obtener IP real detrás de Railway
+
+// ── Salud del servicio (Healthcheck para Railway) ─────────────
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    whatsapp: botState.online ? "online" : "offline",
+    uptime: botState.connectedAt ? Math.floor((Date.now() - botState.connectedAt) / 1000) : null
+  });
+});
+
+app.get("/health/whatsapp", (req, res) => {
+  if (botState.online) return res.status(200).send("OK");
+  res.status(503).send("Service Unavailable");
+});
+
+// ── Rate Limiting en memoria para Auth ────────────────────────
+const fallosAuth = new Map(); // IP -> { intentos, timestamp }
+const MAX_FALLOS = 10;
+const TIEMPO_BLOQUEO = 15 * 60 * 1000; // 15 minutos
+
 // ── Autenticación básica ──────────────────────────────────────
 function basicAuth(req, res, next) {
+  const ip = req.ip;
+  const ahora = Date.now();
+  const estadoIP = fallosAuth.get(ip) || { intentos: 0, timestamp: ahora };
+
+  if (ahora - estadoIP.timestamp > TIEMPO_BLOQUEO) {
+    estadoIP.intentos = 0;
+    estadoIP.timestamp = ahora;
+  }
+
+  if (estadoIP.intentos >= MAX_FALLOS) {
+    fallosAuth.set(ip, estadoIP);
+    return res.status(429).send("Demasiados intentos fallidos. Intente más tarde.");
+  }
+
   const header = req.headers.authorization || "";
   if (!header.startsWith("Basic ")) {
     res.setHeader("WWW-Authenticate", 'Basic realm="Felipe IA Admin"');
     return res.status(401).send("Se requiere autenticación");
   }
-  const decoded    = Buffer.from(header.slice(6), "base64").toString();
-  const colonIdx   = decoded.indexOf(":");
-  const user       = decoded.slice(0, colonIdx);
-  const pass       = decoded.slice(colonIdx + 1);
-  if (user === ADMIN_USER && pass === ADMIN_PASS) return next();
+
+  const decoded = Buffer.from(header.slice(6), "base64").toString();
+  const colonIdx = decoded.indexOf(":");
+  const user = decoded.slice(0, colonIdx);
+  const pass = decoded.slice(colonIdx + 1);
+
+  // Buffer para comparar hashes SHA-256
+  const hashIngresadoUser = crypto.createHash('sha256').update(user).digest();
+  const hashRealUser = crypto.createHash('sha256').update(ADMIN_USER).digest();
+  
+  const hashIngresadoPass = crypto.createHash('sha256').update(pass).digest();
+  const hashRealPass = crypto.createHash('sha256').update(ADMIN_PASS).digest();
+
+  const userOk = crypto.timingSafeEqual(hashIngresadoUser, hashRealUser);
+  const passOk = crypto.timingSafeEqual(hashIngresadoPass, hashRealPass);
+
+  if (userOk && passOk) {
+    // Éxito: limpiar intentos
+    fallosAuth.delete(ip);
+    return next();
+  }
+
+  estadoIP.intentos++;
+  estadoIP.timestamp = ahora;
+  fallosAuth.set(ip, estadoIP);
+
   res.setHeader("WWW-Authenticate", 'Basic realm="Felipe IA Admin"');
   return res.status(401).send("Usuario o contraseña incorrectos");
 }
@@ -115,9 +183,12 @@ app.get("/api/status", (req, res) => {
     ? Math.floor((Date.now() - botState.connectedAt) / 1000)
     : null;
   res.json({
-    online:      botState.online,
+    online: botState.online,
     connectedAt: botState.connectedAt,
     uptime,
+    ultimaDesconexion: botState.ultimaDesconexion,
+    motivoDesconexion: botState.motivoDesconexion,
+    sesionCerrada: botState.sesionCerrada
   });
 });
 
@@ -137,6 +208,19 @@ app.get("/api/stats", (req, res) => {
 
 // ── Arrancar servidor ─────────────────────────────────────────
 function iniciarPanel(logger) {
+  if (!ADMIN_USER || !ADMIN_PASS) {
+    if (process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === "production") {
+      logger.error("🚨 ATENCIÓN: ADMIN_USER y ADMIN_PASS no están definidos en las variables de entorno.");
+      logger.error("🚨 El panel web NO SE INICIARÁ por motivos de seguridad.");
+      return; // No iniciamos la app, pero el bot de WA sigue vivo
+    } else {
+      logger.warn("⚠️  Corriendo en desarrollo sin credenciales definidas.");
+      logger.warn("⚠️  Se usarán 'devadmin' y 'devpass' por defecto.");
+      ADMIN_USER = "devadmin";
+      ADMIN_PASS = "devpass";
+    }
+  }
+
   app.listen(PORT, () => {
     logger.info(`🌐 Panel disponible en http://localhost:${PORT}`);
   });

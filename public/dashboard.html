@@ -326,13 +326,22 @@
       <div class="sub">Panel Administrativo — Municipalidad de Valle Viejo</div>
     </div>
   </div>
-  <div class="status-pill ripple-surface" id="status-pill">
-    <span class="dot" id="dot"></span>
-    <span id="status-text">Cargando...</span>
+  <div style="display: flex; gap: 12px; align-items: center;">
+    <a href="/qr" id="qr-btn" style="display: none; background: #ffffff; color: var(--md-sys-color-primary); padding: 8px 16px; border-radius: 999px; text-decoration: none; font-size: 14px; font-weight: 500; align-items: center; gap: 6px;">
+      <span class="material-symbols-outlined" style="font-size: 18px;">qr_code_scanner</span> Vincular WhatsApp
+    </a>
+    <div class="status-pill ripple-surface" id="status-pill">
+      <span class="dot" id="dot"></span>
+      <span id="status-text">Cargando...</span>
+    </div>
   </div>
 </header>
 
 <main>
+  <div id="sesion-cerrada-alert" style="display: none; background: var(--md-sys-color-error); color: var(--md-sys-color-on-error); padding: 16px; border-radius: 12px; margin-bottom: 24px; font-weight: 500; display: flex; align-items: center; gap: 12px; animation: fadeIn var(--md-sys-motion-duration-medium);">
+    <span class="material-symbols-outlined">warning</span>
+    <div>La sesión de WhatsApp está cerrada (logged out). Tenés que volver a vincular el dispositivo haciendo clic en "Vincular WhatsApp".</div>
+  </div>
   <div class="updated" id="updated">Cargando información...</div>
 
   <!-- Cards de resumen -->
@@ -416,6 +425,17 @@
   let chart = null;
   let periodos = null;
 
+  // ── Helpers ──────────────────────────────────────────────────
+  function escapeHtml(str) {
+    if (str == null) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
   // ── Animación Ripple (Material Design) ─────────────────────────
   function createRipple(event) {
     const button = event.currentTarget;
@@ -498,12 +518,30 @@
   function renderStatus(s) {
     const dot = document.getElementById("dot");
     const txt = document.getElementById("status-text");
+    const qrBtn = document.getElementById("qr-btn");
+    const alertSesion = document.getElementById("sesion-cerrada-alert");
+
     if (s.online) {
       dot.classList.add("online");
       txt.textContent = "En línea";
+      qrBtn.style.display = "none";
+      alertSesion.style.display = "none";
     } else {
       dot.classList.remove("online");
-      txt.textContent = "Desconectado";
+      qrBtn.style.display = "flex";
+      
+      let tiempoStr = "";
+      if (s.ultimaDesconexion) {
+        const min = Math.floor((Date.now() - s.ultimaDesconexion) / 60000);
+        tiempoStr = min > 0 ? ` (hace ${min} min)` : " (recién)";
+      }
+      txt.textContent = "Desconectado" + tiempoStr;
+      
+      if (s.sesionCerrada) {
+        alertSesion.style.display = "flex";
+      } else {
+        alertSesion.style.display = "none";
+      }
     }
   }
 
@@ -593,7 +631,7 @@
     tbody.innerHTML = faqs.map((f, i) => `
       <tr>
         <td class="rank">${i + 1}</td>
-        <td>${f.faq_disparada}</td>
+        <td>${escapeHtml(f.faq_disparada)}</td>
         <td><span class="badge">${fmt(f.total)}</span></td>
       </tr>
     `).join("");
@@ -603,13 +641,15 @@
     const tbody = document.getElementById("tabla-no");
     if (!items.length) { tbody.innerHTML = '<tr><td colspan="3" class="no-data">¡Sin preguntas sin responder! 🎉</td></tr>'; return; }
     tbody.innerHTML = items.map((it, i) => {
-      const pregunta = it.pregunta.length > 55
+      const preguntaRaw = it.pregunta.length > 55
         ? it.pregunta.slice(0, 55) + "…"
         : it.pregunta;
+      const pregunta = escapeHtml(preguntaRaw);
+      const tooltip = escapeHtml(it.pregunta);
       return `
         <tr>
           <td class="rank">${i + 1}</td>
-          <td title="${it.pregunta}">${pregunta}</td>
+          <td title="${tooltip}">${pregunta}</td>
           <td><span class="badge">${fmt(it.total)}</span></td>
         </tr>
       `;
