@@ -47,8 +47,9 @@ Para que el bot funcione 24/7 en producción (Railway), debés configurar las si
 | `AUTH_FOLDER` | Directorio donde guardar la sesión de WhatsApp (ej: `/app/data/auth`). Requiere Volumen. |
 | `DB_PATH` | Ubicación de la base de datos (ej: `/app/data/bot.db`). Requiere Volumen. |
 | `PHONE_NUMBER` | (Opcional) Tu número con código de país para vincular usando código en vez de QR (ej: `5493834...`). |
-| `TELEGRAM_BOT_TOKEN` | (Opcional) Token de BotFather para recibir alertas de desconexión. |
-| `TELEGRAM_CHAT_ID` | (Opcional) Tu Chat ID de Telegram para recibir las alertas. |
+| `GMAIL_USER` | (Opcional) Correo de Gmail desde donde se enviarán las alertas de desconexión. |
+| `GMAIL_PASS` | (Opcional) "Contraseña de aplicación" generada en Google Account para enviar correos. |
+| `ALERT_EMAIL_TO` | (Opcional) Correo electrónico de la persona que recibirá las alertas (puede ser el mismo). |
 | `TZ` | Zona horaria (ej: `America/Argentina/Catamarca`) para que las fechas coincidan localmente. |
 
 ### Configurar Healthcheck en Railway
@@ -57,8 +58,12 @@ Para que Railway sepa que la aplicación está viva y no la reinicie constanteme
 2. En **Healthcheck Path**, escribí: `/health`
 3. Política de reinicio recomendada: `On Failure`
 
-### Alertas por Telegram
-Si configurás `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID`, el bot te avisará por Telegram si la sesión se cierra (loggedOut) o si se desconecta de WhatsApp por más de 5 minutos, así como cuando se recupere. Podés crear tu bot hablando con `@BotFather` en Telegram y obtener tu Chat ID enviándole un mensaje a tu propio bot y revisando la API de Telegram o usando un bot como `@userinfobot`.
+### Alertas por Correo (Gmail)
+Si configurás `GMAIL_USER`, `GMAIL_PASS` y `ALERT_EMAIL_TO`, el bot te avisará por correo electrónico si la sesión de WhatsApp se cierra o pierde conexión por más de 5 minutos.
+Para obtener tu `GMAIL_PASS` (no es la contraseña normal de tu correo):
+1. Entrá a tu [Cuenta de Google](https://myaccount.google.com/security) > Seguridad.
+2. Activá la Verificación en 2 pasos.
+3. Usá el buscador superior para buscar "Contraseñas de aplicación" (App Passwords) y creá una nueva (el nombre puede ser "Felipe IA Bot"). Te dará una contraseña de 16 letras que va en `GMAIL_PASS`.
 
 ### Volúmenes (Importante)
 Agregá un **Volume** en Railway montado en `/app/data`. Allí se guardarán los datos de la base de datos SQLite y la sesión de WhatsApp (`auth/`). Si no configurás un volumen, perderás el historial de chats y tendrás que re-escanear el código QR en cada reinicio o despliegue.
