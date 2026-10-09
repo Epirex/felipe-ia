@@ -1,4 +1,9 @@
 const nodemailer = require("nodemailer");
+const dns = require("dns");
+
+// Forzar IPv4 globalmente. Node.js 18+ prioriza IPv6, lo cual falla en
+// algunos contenedores de Railway al intentar conectar a smtp.gmail.com
+dns.setDefaultResultOrder("ipv4first");
 
 const GMAIL_USER = process.env.GMAIL_USER;
 const GMAIL_PASS = process.env.GMAIL_PASS; // Contraseña de aplicación de Google
@@ -10,7 +15,9 @@ const THROTTLE_MS = 10 * 60 * 1000; // 10 minutos (no enviar la misma alerta má
 let transporter = null;
 if (GMAIL_USER && GMAIL_PASS) {
   transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
     auth: {
       user: GMAIL_USER,
       pass: GMAIL_PASS,
