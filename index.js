@@ -313,18 +313,15 @@ async function manejarMensajeEstado(sock, msg) {
     logger.info(`📢 [Estados] Procesando ${tipo} del grupo de estados...`);
     const buffer = await downloadMediaMessage(msg, "buffer", {});
 
-    // Obtener participantes del grupo en formato @s.whatsapp.net (correcto para statusJidList)
+    // Obtener participantes del grupo — se usan tal cual (puede ser @lid o @s.whatsapp.net)
     let statusJidList = [];
     try {
       const meta = await sock.groupMetadata(msg.key.remoteJid);
-      statusJidList = meta.participants
-        .map(p => p.id)
-        .filter(id => id.endsWith("@s.whatsapp.net"));
-      logger.info(`📢 [Estados] ${statusJidList.length} participantes del grupo como destinatarios.`);
+      statusJidList = meta.participants.map(p => p.id);
+      logger.info(`📢 [Estados] ${statusJidList.length} participantes: ${statusJidList.join(", ")}`);
     } catch (e) {
-      logger.warn(`📢 [Estados] No se pudo obtener metadata del grupo: ${e.message}. Usando contactos conocidos.`);
-      // Fallback: usar contactos conocidos (pueden ser @lid, pero intentamos igual)
-      statusJidList = [...contactosConocidos].filter(id => id.endsWith("@s.whatsapp.net"));
+      logger.warn(`📢 [Estados] No se pudo obtener metadata del grupo: ${e.message}`);
+      statusJidList = [...contactosConocidos];
     }
 
     if (statusJidList.length === 0) {
