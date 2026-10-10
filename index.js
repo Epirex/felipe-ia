@@ -305,40 +305,62 @@ async function manejarMensajeEstado(sock, msg) {
 
   try {
     logger.info(`📢 [Estados] Procesando ${tipo}...`);
-    const buffer = await downloadMediaMessage(msg, "buffer", {});
 
-    // Armar la lista de JIDs en formato @s.whatsapp.net
+    // ── Descargar el media ──────────────────────────────────────
+    const buffer = await downloadMediaMessage(msg, "buffer", {});
+    if (!buffer || buffer.length === 0) {
+      logger.error("📢 [Estados] El buffer descargado está vacío. Abortando.");
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: "❌", key: msg.key } });
+      return;
+    }
+    logger.info(`📢 [Estados] Buffer descargado: ${buffer.length} bytes.`);
+
+    // ── Armar statusJidList ─────────────────────────────────────
+    // IMPORTANTE: statusJidList SOLO acepta @s.whatsapp.net
+    // Los JIDs @lid no son resolubles por getUSyncDevices y son ignorados por WhatsApp.
     const jidSet = new Set();
 
-    // 1. El JID del propio bot (OBLIGATORIO para que aparezca en "Mi estado")
+    // 1. El JID del propio bot
     if (sock.user?.id) {
-      const propio = sock.user.id.replace(/:\d+/, ""); // quitar ":0" del device number
+      const propio = sock.user.id.replace(/:\d+/, "");
       jidSet.add(propio.endsWith("@s.whatsapp.net") ? propio : propio + "@s.whatsapp.net");
     }
 
-    // 2. Si está definido PHONE_NUMBER, incluir también
+    // 2. Si está definido PHONE_NUMBER en las variables de entorno
     if (PHONE_NUMBER) {
       jidSet.add(`${PHONE_NUMBER}@s.whatsapp.net`);
     }
 
-    // 3. Contactos conocidos que estén en formato @s.whatsapp.net (leídos desde la DB)
-    for (const jid of getContactosConocidos()) {
-      jidSet.add(jid);
+    // 3. Contactos conocidos de la DB (solo @s.whatsapp.net — @lid se filtra acá)
+    const todosContactos = getContactosConocidos();
+    const contactosValidos   = todosContactos.filter(j => j.endsWith("@s.whatsapp.net"));
+    const contactosInvalidos = todosContactos.filter(j => !j.endsWith("@s.whatsapp.net"));
+
+    for (const jid of contactosValidos) jidSet.add(jid);
+
+    if (contactosInvalidos.length > 0) {
+      logger.warn(`📢 [Estados] ${contactosInvalidos.length} contacto(s) con @lid ignorados (no válidos para estado). Necesitan volver a escribir al bot para registrar su JID real.`);
     }
 
     const statusJidList = [...jidSet];
-    logger.info(`📢 [Estados] statusJidList: ${statusJidList.join(", ")}`);
+    logger.info(`📢 [Estados] statusJidList (${statusJidList.length}): ${statusJidList.join(", ")}`);
 
+    if (statusJidList.length === 0) {
+      logger.error("📢 [Estados] Sin contactos válidos. El estado no será visible para nadie. Esperá a que alguien le escriba al bot.");
+    }
+
+    // ── Enviar el estado ────────────────────────────────────────
     if (imagen) {
-      await sock.sendMessage("status@broadcast", { image: buffer, caption }, { broadcast: true, statusJidList });
+      await sock.sendMessage("status@broadcast", { image: buffer, caption }, { statusJidList });
     } else {
-      await sock.sendMessage("status@broadcast", { video: buffer, caption, gifPlayback: false }, { broadcast: true, statusJidList });
+      await sock.sendMessage("status@broadcast", { video: buffer, caption, gifPlayback: false }, { statusJidList });
     }
 
     await sock.sendMessage(msg.key.remoteJid, { react: { text: "✅", key: msg.key } });
-    logger.info(`📢 [Estados] Estado publicado para ${statusJidList.length} destinatarios (${tipo}).`);
+    logger.info(`📢 [Estados] Estado enviado a ${statusJidList.length} destinatario(s) (${tipo}).`);
   } catch (err) {
-    logger.error(`📢 [Estados] Error: ${err.message}`);
+    logger.error(`📢 [Estados] Error al publicar: ${err.message}`);
+    logger.error(err.stack || "");
     await sock.sendMessage(msg.key.remoteJid, { react: { text: "❌", key: msg.key } });
   }
 }
@@ -363,7 +385,7 @@ async function iniciarBot(intentosReconexion = 0) {
   const sock = makeWASocket({
     version,
     auth: state,
-    logger: pino({ level: "silent" }),
+    logger: pino({ level: "warn" }),   // 'silent' ocultaba errores internos de Baileys
     printQRInTerminal: false,
   });
 
