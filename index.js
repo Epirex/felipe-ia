@@ -353,6 +353,13 @@ async function iniciarBot(intentosReconexion = 0) {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
   const { version } = await fetchLatestBaileysVersion();
 
+  // Suprimir el ruido de "Closing session: SessionEntry" que imprime Baileys
+  const consoleLogOriginal = console.log;
+  console.log = (...args) => {
+    if (typeof args[0] === "string" && args[0].startsWith("Closing session")) return;
+    consoleLogOriginal(...args);
+  };
+
   const sock = makeWASocket({
     version,
     auth: state,
