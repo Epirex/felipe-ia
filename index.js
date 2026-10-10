@@ -297,54 +297,28 @@ async function enviarRespuesta(sock, jid, respuesta) {
 }
 
 // ── Publicador de estados de WhatsApp ────────────────────────
-// Si el mensaje viene del grupo STATUS_GRUPO_ID y tiene foto o video,
-// lo descarga y lo sube automáticamente como estado de WhatsApp.
+// Reenvía la imagen/video del grupo a status@broadcast usando el protocolo
+// de "forward", igual que cuando un humano reenvía desde WhatsApp Web.
 async function manejarMensajeEstado(sock, msg) {
   const imagen = msg.message?.imageMessage;
   const video  = msg.message?.videoMessage;
 
-  // Solo procesar si hay media adjunta
   if (!imagen && !video) return;
 
-  const tipo    = imagen ? "imagen" : "video";
-  const caption = imagen?.caption || video?.caption || "";
+  const tipo = imagen ? "imagen" : "video";
 
   try {
-    logger.info(`📢 [Estados] Procesando ${tipo} del grupo de estados...`);
-    const buffer = await downloadMediaMessage(msg, "buffer", {});
+    logger.info(`📢 [Estados] Reenviando ${tipo} a estados...`);
 
-    // Obtener participantes del grupo — se usan tal cual (puede ser @lid o @s.whatsapp.net)
-    let statusJidList = [];
-    try {
-      const meta = await sock.groupMetadata(msg.key.remoteJid);
-      statusJidList = meta.participants.map(p => p.id);
-      logger.info(`📢 [Estados] ${statusJidList.length} participantes: ${statusJidList.join(", ")}`);
-    } catch (e) {
-      logger.warn(`📢 [Estados] No se pudo obtener metadata del grupo: ${e.message}`);
-      statusJidList = [...contactosConocidos];
-    }
+    // Usar forward: exactamente como hace WhatsApp Web al "Reenviar a mi estado"
+    await sock.sendMessage("status@broadcast", { forward: msg });
 
-    if (statusJidList.length === 0) {
-      logger.warn("📢 [Estados] Lista de destinatarios vacía. El estado puede no ser visible.");
-    }
-
-    // broadcast: true es OBLIGATORIO para que WhatsApp procese el estado correctamente
-    const opciones = { broadcast: true, statusJidList };
-
-    if (imagen) {
-      await sock.sendMessage("status@broadcast", { image: buffer, caption }, opciones);
-    } else {
-      await sock.sendMessage("status@broadcast", { video: buffer, caption, gifPlayback: false }, opciones);
-    }
-
-    // Reaccionar con ✅ para confirmar la publicación
     await sock.sendMessage(msg.key.remoteJid, {
       react: { text: "✅", key: msg.key },
     });
-    logger.info(`📢 [Estados] Estado publicado para ${statusJidList.length} contactos (${tipo}).`);
+    logger.info(`📢 [Estados] Estado publicado exitosamente vía forward (${tipo}).`);
   } catch (err) {
     logger.error(`📢 [Estados] Error al publicar estado: ${err.message}`);
-    // Reaccionar con ❌ para avisar del error
     await sock.sendMessage(msg.key.remoteJid, {
       react: { text: "❌", key: msg.key },
     });
