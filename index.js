@@ -453,6 +453,20 @@ async function iniciarBot(intentosReconexion = 0) {
     }, 60000);
   }
 
+  // ── Contactos: guardar JIDs reales (@s.whatsapp.net) ─────────
+  // Baileys emite contacts.upsert al conectar y cuando llegan nuevos contactos.
+  // Estos JIDs sí están en formato @s.whatsapp.net (no @lid), exactamente
+  // lo que necesita statusJidList para publicar estados.
+  sock.ev.on("contacts.upsert", (contacts) => {
+    for (const contact of contacts) {
+      if (contact.id && contact.id.endsWith("@s.whatsapp.net")) {
+        registrarContacto(contact.id);
+      }
+    }
+    const total = contacts.filter(c => c.id?.endsWith("@s.whatsapp.net")).length;
+    if (total > 0) logger.info(`📇 [Contactos] ${total} contacto(s) sincronizado(s) en DB.`);
+  });
+
   // ── Escucha de mensajes entrantes ────────────────────────────
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
     if (type !== "notify") return;
