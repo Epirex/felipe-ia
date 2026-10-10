@@ -16,12 +16,16 @@ let transporter = null;
 if (GMAIL_USER && GMAIL_PASS) {
   transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
+    port: 587,
+    secure: false, // usa STARTTLS
+    requireTLS: true,
     auth: {
       user: GMAIL_USER,
       pass: GMAIL_PASS,
     },
+    // Esto es CLAVE: le dice a Node que use IPv4 sí o sí para el socket,
+    // ignorando por completo IPv6 (que es lo que falla en Railway).
+    family: 4
   });
 }
 
