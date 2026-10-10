@@ -34,6 +34,11 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_fecha   ON mensajes(fecha);
   CREATE INDEX IF NOT EXISTS idx_faq     ON mensajes(faq_disparada);
   CREATE INDEX IF NOT EXISTS idx_usuario ON mensajes(usuario_hash);
+
+  CREATE TABLE IF NOT EXISTS contactos (
+    jid  TEXT PRIMARY KEY,
+    visto_en TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+  );
 `);
 
 // ── Privacidad: hashear el JID del usuario ────────────────────
@@ -43,7 +48,24 @@ function hashUsuario(jid) {
   return crypto.createHash("sha256").update(jid).digest("hex").slice(0, 16);
 }
 
-// ── Registrar un mensaje entrante ─────────────────────────────
+// ── Contactos conocidos (para estados de WhatsApp) ────────────
+// El JID se guarda tal cual (no hasheado) porque se necesita para enviar estados.
+const _registrarContactoStmt = db.prepare(`
+  INSERT INTO contactos (jid) VALUES (?)
+  ON CONFLICT(jid) DO UPDATE SET visto_en = datetime('now', 'localtime')
+`);
+
+function registrarContacto(jid) {
+  try {
+    _registrarContactoStmt.run(jid);
+  } catch (_) { /* ignorar errores silenciosamente */ }
+}
+
+function getContactosConocidos() {
+  return db.prepare("SELECT jid FROM contactos WHERE jid LIKE '%@s.whatsapp.net'").all().map(r => r.jid);
+}
+
+
 function registrarMensaje({ jid, pregunta, faqDisparada, respondido }) {
   db.prepare(`
     INSERT INTO mensajes (usuario_hash, pregunta, faq_disparada, respondido)
@@ -130,6 +152,8 @@ function getMensajesPorPeriodo() {
 
 module.exports = {
   registrarMensaje,
+  registrarContacto,
+  getContactosConocidos,
   getResumenTotal,
   getTopFaqs,
   getNoRespondidos,

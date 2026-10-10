@@ -17,7 +17,7 @@ const pino = require("pino");
 const fs = require("fs");
 const path = require("path");
 const { faqs, charla, submenus, bienvenida, noEntendido } = require("./faqs");
-const { registrarMensaje } = require("./db");
+const { registrarMensaje, registrarContacto, getContactosConocidos } = require("./db");
 const { iniciarPanel }     = require("./panel");
 const botState             = require("./state");
 const { notificarAlerta }  = require("./alertas");
@@ -41,9 +41,6 @@ const STATUS_GRUPO_ID = process.env.STATUS_GRUPO_ID || null;
 // En 0 = desactivado (los mensajes seguidos se responden siempre).
 const COOLDOWN_MS = 0;
 
-// JIDs de todos los usuarios que alguna vez le escribieron al bot.
-// Se usa para saber a quién enviar los estados de WhatsApp.
-const contactosConocidos = new Set();
 
 // ── Logs con fecha/hora ───────────────────────────────────────
 function log(nivel, ...args) {
@@ -324,9 +321,9 @@ async function manejarMensajeEstado(sock, msg) {
       jidSet.add(`${PHONE_NUMBER}@s.whatsapp.net`);
     }
 
-    // 3. Contactos conocidos que estén en formato @s.whatsapp.net
-    for (const jid of contactosConocidos) {
-      if (jid.endsWith("@s.whatsapp.net")) jidSet.add(jid);
+    // 3. Contactos conocidos que estén en formato @s.whatsapp.net (leídos desde la DB)
+    for (const jid of getContactosConocidos()) {
+      jidSet.add(jid);
     }
 
     const statusJidList = [...jidSet];
@@ -483,8 +480,8 @@ async function iniciarBot(intentosReconexion = 0) {
 
     const remitente = msg.key.remoteJid;
 
-    // Registrar el JID para poder usarlo como destinatario de estados
-    contactosConocidos.add(remitente);
+    // Registrar el JID en la DB para poder usarlo como destinatario de estados
+    registrarContacto(remitente);
 
     // ── Rate limiting ─────────────────────────────────────────
     if (enCooldown(remitente)) {
