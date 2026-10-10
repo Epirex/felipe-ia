@@ -9,6 +9,7 @@ const {
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
+  downloadMediaMessage,
 } = require("@whiskeysockets/baileys");
 const qrcode         = require("qrcode-terminal");
 const QRCode         = require("qrcode");          // genera imagen PNG del QR para el panel
@@ -29,6 +30,11 @@ const AUTH_FOLDER = process.env.AUTH_FOLDER || "auth";
 // Formato: código de país + número, sin +, sin espacios. Ej: 5493834403982
 // Si está definido, el bot muestra un código de 8 dígitos en los logs en lugar del QR.
 const PHONE_NUMBER = process.env.PHONE_NUMBER || null;
+
+// JID del grupo privado desde donde se publican estados de WhatsApp.
+// El bot detecta automáticamente los JIDs de los grupos que le escriben (ver logs).
+// Formato: 120363XXXXXXXXXX@g.us
+const STATUS_GRUPO_ID = process.env.STATUS_GRUPO_ID || null;
 
 // Rate limiting: un usuario debe esperar COOLDOWN_MS entre respuestas
 // para evitar que el bot responda en bucle o sea abusado.
@@ -286,6 +292,43 @@ async function enviarRespuesta(sock, jid, respuesta) {
   await sock.sendMessage(jid, { text: String(respuesta) });
 }
 
+// ── Publicador de estados de WhatsApp ────────────────────────
+// Si el mensaje viene del grupo STATUS_GRUPO_ID y tiene foto o video,
+// lo descarga y lo sube automáticamente como estado de WhatsApp.
+async function manejarMensajeEstado(sock, msg) {
+  const imagen = msg.message?.imageMessage;
+  const video  = msg.message?.videoMessage;
+
+  // Solo procesar si hay media adjunta
+  if (!imagen && !video) return;
+
+  const tipo    = imagen ? "imagen" : "video";
+  const caption = imagen?.caption || video?.caption || "";
+
+  try {
+    logger.info(`📢 [Estados] Procesando ${tipo} del grupo de estados...`);
+    const buffer = await downloadMediaMessage(msg, "buffer", {});
+
+    if (imagen) {
+      await sock.sendMessage("status@broadcast", { image: buffer, caption });
+    } else {
+      await sock.sendMessage("status@broadcast", { video: buffer, caption, gifPlayback: false });
+    }
+
+    // Reaccionar con ✅ para confirmar la publicación
+    await sock.sendMessage(msg.key.remoteJid, {
+      react: { text: "✅", key: msg.key },
+    });
+    logger.info(`📢 [Estados] Estado publicado exitosamente (${tipo}).`);
+  } catch (err) {
+    logger.error(`📢 [Estados] Error al publicar estado: ${err.message}`);
+    // Reaccionar con ❌ para avisar del error
+    await sock.sendMessage(msg.key.remoteJid, {
+      react: { text: "❌", key: msg.key },
+    });
+  }
+}
+
 // El panel web solo debe iniciarse una vez, no en cada reconexión de WhatsApp
 let panelIniciado = false;
 let checkConexionInterval = null;
@@ -396,9 +439,20 @@ async function iniciarBot(intentosReconexion = 0) {
     const msg = messages[0];
     if (!msg.message || msg.key.fromMe) return;
 
-    // Solo responder en chats individuales, no en grupos
+    // Solo responder en chats individuales, no en grupos...
+    // EXCEPCIÓN: el grupo de estados se maneja aparte.
     const esGrupo = msg.key.remoteJid?.endsWith("@g.us");
-    if (esGrupo) return;
+    if (esGrupo) {
+      // Logear el JID del grupo para facilitar la config de STATUS_GRUPO_ID
+      if (!STATUS_GRUPO_ID) {
+        logger.info(`[Grupos] Mensaje de grupo detectado. JID: ${msg.key.remoteJid} — copialo a la variable STATUS_GRUPO_ID si es el grupo de estados.`);
+      }
+      // Si es el grupo de estados configurado, procesar como publicación
+      if (STATUS_GRUPO_ID && msg.key.remoteJid === STATUS_GRUPO_ID) {
+        await manejarMensajeEstado(sock, msg);
+      }
+      return;
+    }
 
     const remitente = msg.key.remoteJid;
 
