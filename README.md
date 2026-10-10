@@ -47,9 +47,8 @@ Para que el bot funcione 24/7 en producción (Railway), debés configurar las si
 | `AUTH_FOLDER` | Directorio donde guardar la sesión de WhatsApp (ej: `/app/data/auth`). Requiere Volumen. |
 | `DB_PATH` | Ubicación de la base de datos (ej: `/app/data/bot.db`). Requiere Volumen. |
 | `PHONE_NUMBER` | (Opcional) Tu número con código de país para vincular usando código en vez de QR (ej: `5493834...`). |
-| `GMAIL_USER` | (Opcional) Correo de Gmail desde donde se enviarán las alertas de desconexión. |
-| `GMAIL_PASS` | (Opcional) "Contraseña de aplicación" generada en Google Account para enviar correos. |
-| `ALERT_EMAIL_TO` | (Opcional) Correo electrónico de la persona que recibirá las alertas (puede ser el mismo). |
+| `RESEND_API_KEY` | (Opcional) API Key de Resend para enviar alertas de desconexión por correo. |
+| `ALERT_EMAIL_TO` | (Opcional) Correo electrónico que recibirá las alertas (ej: el tuyo personal). |
 | `TZ` | Zona horaria (ej: `America/Argentina/Catamarca`) para que las fechas coincidan localmente. |
 
 ### Configurar Healthcheck en Railway
@@ -58,12 +57,13 @@ Para que Railway sepa que la aplicación está viva y no la reinicie constanteme
 2. En **Healthcheck Path**, escribí: `/health`
 3. Política de reinicio recomendada: `On Failure`
 
-### Alertas por Correo (Gmail)
-Si configurás `GMAIL_USER`, `GMAIL_PASS` y `ALERT_EMAIL_TO`, el bot te avisará por correo electrónico si la sesión de WhatsApp se cierra o pierde conexión por más de 5 minutos.
-Para obtener tu `GMAIL_PASS` (no es la contraseña normal de tu correo):
-1. Entrá a tu [Cuenta de Google](https://myaccount.google.com/security) > Seguridad.
-2. Activá la Verificación en 2 pasos.
-3. Usá el buscador superior para buscar "Contraseñas de aplicación" (App Passwords) y creá una nueva (el nombre puede ser "Felipe IA Bot"). Te dará una contraseña de 16 letras que va en `GMAIL_PASS`.
+### Alertas por Correo (Resend)
+El bot usa [Resend](https://resend.com) para enviar alertas por correo — es gratuito hasta 3.000 mails/mes y funciona vía HTTP, por lo que no tiene restricciones de red en Railway.
+Para configurarlo:
+1. Creá una cuenta gratuita en https://resend.com.
+2. Andá a **API Keys** y creá una nueva. Copiá la clave (`re_...`).
+3. En Railway, agregá las variables `RESEND_API_KEY` (la clave) y `ALERT_EMAIL_TO` (el correo donde querés recibir los avisos).
+El bot te avisará si la sesión de WhatsApp se cierra o se desconecta por más de 5 minutos, y también cuando se recupere.
 
 ### Volúmenes (Importante)
 Agregá un **Volume** en Railway montado en `/app/data`. Allí se guardarán los datos de la base de datos SQLite y la sesión de WhatsApp (`auth/`). Si no configurás un volumen, perderás el historial de chats y tendrás que re-escanear el código QR en cada reinicio o despliegue.
