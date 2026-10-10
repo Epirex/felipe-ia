@@ -4,19 +4,13 @@
 // No usa navegador/Puppeteer -> mucho más estable que whatsapp-web.js
 // ============================================================
 
-// Baileys 7 es un módulo ESM: se carga con import() dinámico dentro de iniciarBot().
-let makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion,
-    downloadMediaMessage, generateWAMessage;
-async function cargarBaileys() {
-  if (makeWASocket) return;
-  const b = await import("@whiskeysockets/baileys");
-  makeWASocket              = b.default || b.makeWASocket;
-  useMultiFileAuthState     = b.useMultiFileAuthState;
-  DisconnectReason          = b.DisconnectReason;
-  fetchLatestBaileysVersion = b.fetchLatestBaileysVersion;
-  downloadMediaMessage      = b.downloadMediaMessage;
-  generateWAMessage         = b.generateWAMessage;
-}
+const makeWASocket = require("@whiskeysockets/baileys").default;
+const {
+  useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  downloadMediaMessage,
+} = require("@whiskeysockets/baileys");
 const qrcode         = require("qrcode-terminal");
 const QRCode         = require("qrcode");          // genera imagen PNG del QR para el panel
 const pino = require("pino");
@@ -300,61 +294,6 @@ async function enviarRespuesta(sock, jid, respuesta) {
 }
 
 // ── Publicador de estados de WhatsApp ────────────────────────
-// Cuentas migradas a LID: WhatsApp rechaza (ack error 479) los estados armados con
-// destinatarios solo-teléfono. Baileys lo esconde y sendMessage "funciona" igual.
-// Por eso acá: (1) resolvemos todos los destinatarios a LID, (2) mandamos el
-// atributo addressing_mode, (3) esperamos el ack real del servidor y lo logueamos.
-//   STATUS_ADDRESSING_MODE = lid (default) | pn | none   -> atributo del stanza
-//   STATUS_USAR_LID        = 1 (default) | 0             -> convertir destinatarios a LID
-const STATUS_ADDRESSING_MODE = process.env.STATUS_ADDRESSING_MODE || "lid";
-const STATUS_USAR_LID        = process.env.STATUS_USAR_LID !== "0";
-
-function esperarAckEstado(sock, id, timeoutMs = 15000) {
-  return new Promise((resolve) => {
-    const fin = (r) => { clearTimeout(t); sock.ws.off("CB:ack,class:message", onAck); resolve(r); };
-    const onAck = (node) => {
-      if (node?.attrs?.id !== id) return;
-      logger.info(`📢 [Estados] ACK del servidor: ${JSON.stringify(node.attrs)}`);
-      fin(node.attrs.error ? { ok: false, error: node.attrs.error } : { ok: true });
-    };
-    const t = setTimeout(() => fin({ ok: false, error: "timeout (sin ack)" }), timeoutMs);
-    sock.ws.on("CB:ack,class:message", onAck);
-  });
-}
-
-async function armarDestinatariosEstado(sock) {
-  const sinDevice = (j) => (j || "").replace(/:\d+(?=@)/, "");
-  const crudos = new Set();
-  const creds = sock.authState?.creds;
-  const propioPN  = sinDevice(creds?.me?.id || sock.user?.id);
-  const propioLID = sinDevice(creds?.me?.lid || sock.user?.lid);
-  if (propioPN)  crudos.add(propioPN);
-  if (propioLID) crudos.add(propioLID);
-  if (PHONE_NUMBER) crudos.add(`${PHONE_NUMBER}@s.whatsapp.net`);
-  for (const n of (process.env.STATUS_DESTINATARIOS || "").split(",")) {
-    const num = n.trim().replace(/\D/g, "");
-    if (num) crudos.add(`${num}@s.whatsapp.net`);
-  }
-  for (const jid of getContactosConocidos()) crudos.add(sinDevice(jid));
-
-  const lidMap = sock.signalRepository?.lidMapping;
-  const final = new Map(); // user -> jid (dedupe por usuario)
-  let sinResolver = 0;
-  for (const jid of crudos) {
-    if (!jid.endsWith("@s.whatsapp.net") && !jid.endsWith("@lid")) continue;
-    let destino = jid;
-    if (STATUS_USAR_LID && jid.endsWith("@s.whatsapp.net") && lidMap?.getLIDForPN) {
-      try {
-        const lid = await lidMap.getLIDForPN(jid);
-        if (lid) destino = sinDevice(lid); else { sinResolver++; continue; }
-      } catch { sinResolver++; continue; }
-    }
-    final.set(destino.split("@")[0], destino);
-  }
-  if (sinResolver) logger.warn(`📢 [Estados] ${sinResolver} número(s) sin LID conocido, omitidos.`);
-  return [...final.values()];
-}
-
 async function manejarMensajeEstado(sock, msg) {
   const imagen = msg.message?.imageMessage;
   const video  = msg.message?.videoMessage;
@@ -368,32 +307,52 @@ async function manejarMensajeEstado(sock, msg) {
     logger.info(`📢 [Estados] Procesando ${tipo}...`);
     const buffer = await downloadMediaMessage(msg, "buffer", {});
 
-    const statusJidList = await armarDestinatariosEstado(sock);
-    logger.info(`📢 [Estados] statusJidList (${statusJidList.length}): ${statusJidList.join(", ")}`);
+    // Armar la lista de destinatarios. IMPORTANTE (Baileys 6.7.x):
+    // statusJidList SOLO acepta JIDs de teléfono (@s.whatsapp.net). Si se cuela un @lid,
+    // Baileys lo reconstruye como número falso y el servidor descarta el estado en silencio
+    // (el sendMessage no da error, pero el estado nunca aparece en "Novedades").
+    const jidSet = new Set();
+    const aPN = (jid) => {
+      if (!jid) return null;
+      const limpio = jid.replace(/:\d+(?=@)/, ""); // quitar ":12" del device number
+      return limpio.endsWith("@s.whatsapp.net") ? limpio : null; // descarta @lid, @g.us, etc.
+    };
 
-    const contenido = imagen ? { image: buffer, caption } : { video: buffer, caption, gifPlayback: false };
-    const fullMsg = await generateWAMessage("status@broadcast", contenido, {
-      logger: pino({ level: "silent" }),
-      userJid: sock.user.id,
-      upload: sock.waUploadToServer,
-    });
+    // 1. El número propio del bot (creds.me.id es siempre formato teléfono)
+    const propio = aPN(sock.authState?.creds?.me?.id || sock.user?.id);
+    if (propio) jidSet.add(propio);
 
-    const additionalAttributes = STATUS_ADDRESSING_MODE === "none" ? {} : { addressing_mode: STATUS_ADDRESSING_MODE };
-    const ackPromesa = esperarAckEstado(sock, fullMsg.key.id);
-    await sock.relayMessage("status@broadcast", fullMsg.message, {
-      messageId: fullMsg.key.id,
-      statusJidList,
-      additionalAttributes,
-    });
-    const ack = await ackPromesa;
+    // 2. Si está definido PHONE_NUMBER, incluir también
+    if (PHONE_NUMBER) jidSet.add(`${PHONE_NUMBER}@s.whatsapp.net`);
 
-    if (!ack.ok) throw new Error(`el servidor rechazó el estado: ${ack.error}`);
+    // 3. Destinatarios fijos opcionales: STATUS_DESTINATARIOS="5493834111111,5493834222222"
+    for (const n of (process.env.STATUS_DESTINATARIOS || "").split(",")) {
+      const num = n.trim().replace(/\D/g, "");
+      if (num) jidSet.add(`${num}@s.whatsapp.net`);
+    }
+
+    // 4. Contactos conocidos (DB), SOLO los que están en formato teléfono
+    let descartadosLid = 0;
+    for (const jid of getContactosConocidos()) {
+      const pn = aPN(jid);
+      if (pn) jidSet.add(pn); else descartadosLid++;
+    }
+    if (descartadosLid) logger.warn(`📢 [Estados] ${descartadosLid} contacto(s) @lid descartados (no soportados como destinatarios en esta versión de Baileys).`);
+
+    const statusJidList = [...jidSet];
+    logger.info(`📢 [Estados] statusJidList: ${statusJidList.join(", ")}`);
+
+    if (imagen) {
+      await sock.sendMessage("status@broadcast", { image: buffer, caption }, { broadcast: true, statusJidList });
+    } else {
+      await sock.sendMessage("status@broadcast", { video: buffer, caption, gifPlayback: false }, { broadcast: true, statusJidList });
+    }
 
     await sock.sendMessage(msg.key.remoteJid, { react: { text: "✅", key: msg.key } });
-    logger.info(`📢 [Estados] Estado aceptado por el servidor (${tipo}, ${statusJidList.length} destinatarios).`);
+    logger.info(`📢 [Estados] Estado publicado para ${statusJidList.length} destinatarios (${tipo}).`);
   } catch (err) {
     logger.error(`📢 [Estados] Error: ${err.message}`);
-    await sock.sendMessage(msg.key.remoteJid, { react: { text: "❌", key: msg.key } }).catch(() => {});
+    await sock.sendMessage(msg.key.remoteJid, { react: { text: "❌", key: msg.key } });
   }
 }
 
@@ -404,7 +363,6 @@ let checkConexionInterval = null;
 async function iniciarBot(intentosReconexion = 0) {
   // Guarda la sesión en la carpeta ./auth para no tener que escanear
   // el QR cada vez que reinicies el bot.
-  await cargarBaileys();
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
   const { version } = await fetchLatestBaileysVersion();
 
