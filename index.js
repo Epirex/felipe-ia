@@ -305,62 +305,53 @@ async function manejarMensajeEstado(sock, msg) {
 
   try {
     logger.info(`📢 [Estados] Procesando ${tipo}...`);
-
-    // ── Descargar el media ──────────────────────────────────────
     const buffer = await downloadMediaMessage(msg, "buffer", {});
-    if (!buffer || buffer.length === 0) {
-      logger.error("📢 [Estados] El buffer descargado está vacío. Abortando.");
-      await sock.sendMessage(msg.key.remoteJid, { react: { text: "❌", key: msg.key } });
-      return;
-    }
-    logger.info(`📢 [Estados] Buffer descargado: ${buffer.length} bytes.`);
 
-    // ── Armar statusJidList ─────────────────────────────────────
-    // IMPORTANTE: statusJidList SOLO acepta @s.whatsapp.net
-    // Los JIDs @lid no son resolubles por getUSyncDevices y son ignorados por WhatsApp.
+    // Armar la lista de destinatarios. IMPORTANTE (Baileys 6.7.x):
+    // statusJidList SOLO acepta JIDs de teléfono (@s.whatsapp.net). Si se cuela un @lid,
+    // Baileys lo reconstruye como número falso y el servidor descarta el estado en silencio
+    // (el sendMessage no da error, pero el estado nunca aparece en "Novedades").
     const jidSet = new Set();
+    const aPN = (jid) => {
+      if (!jid) return null;
+      const limpio = jid.replace(/:\d+(?=@)/, ""); // quitar ":12" del device number
+      return limpio.endsWith("@s.whatsapp.net") ? limpio : null; // descarta @lid, @g.us, etc.
+    };
 
-    // 1. El JID del propio bot
-    if (sock.user?.id) {
-      const propio = sock.user.id.replace(/:\d+/, "");
-      jidSet.add(propio.endsWith("@s.whatsapp.net") ? propio : propio + "@s.whatsapp.net");
+    // 1. El número propio del bot (creds.me.id es siempre formato teléfono)
+    const propio = aPN(sock.authState?.creds?.me?.id || sock.user?.id);
+    if (propio) jidSet.add(propio);
+
+    // 2. Si está definido PHONE_NUMBER, incluir también
+    if (PHONE_NUMBER) jidSet.add(`${PHONE_NUMBER}@s.whatsapp.net`);
+
+    // 3. Destinatarios fijos opcionales: STATUS_DESTINATARIOS="5493834111111,5493834222222"
+    for (const n of (process.env.STATUS_DESTINATARIOS || "").split(",")) {
+      const num = n.trim().replace(/\D/g, "");
+      if (num) jidSet.add(`${num}@s.whatsapp.net`);
     }
 
-    // 2. Si está definido PHONE_NUMBER en las variables de entorno
-    if (PHONE_NUMBER) {
-      jidSet.add(`${PHONE_NUMBER}@s.whatsapp.net`);
+    // 4. Contactos conocidos (DB), SOLO los que están en formato teléfono
+    let descartadosLid = 0;
+    for (const jid of getContactosConocidos()) {
+      const pn = aPN(jid);
+      if (pn) jidSet.add(pn); else descartadosLid++;
     }
-
-    // 3. Contactos conocidos de la DB (solo @s.whatsapp.net — @lid se filtra acá)
-    const todosContactos = getContactosConocidos();
-    const contactosValidos   = todosContactos.filter(j => j.endsWith("@s.whatsapp.net"));
-    const contactosInvalidos = todosContactos.filter(j => !j.endsWith("@s.whatsapp.net"));
-
-    for (const jid of contactosValidos) jidSet.add(jid);
-
-    if (contactosInvalidos.length > 0) {
-      logger.warn(`📢 [Estados] ${contactosInvalidos.length} contacto(s) con @lid ignorados (no válidos para estado). Necesitan volver a escribir al bot para registrar su JID real.`);
-    }
+    if (descartadosLid) logger.warn(`📢 [Estados] ${descartadosLid} contacto(s) @lid descartados (no soportados como destinatarios en esta versión de Baileys).`);
 
     const statusJidList = [...jidSet];
-    logger.info(`📢 [Estados] statusJidList (${statusJidList.length}): ${statusJidList.join(", ")}`);
+    logger.info(`📢 [Estados] statusJidList: ${statusJidList.join(", ")}`);
 
-    if (statusJidList.length === 0) {
-      logger.error("📢 [Estados] Sin contactos válidos. El estado no será visible para nadie. Esperá a que alguien le escriba al bot.");
-    }
-
-    // ── Enviar el estado ────────────────────────────────────────
     if (imagen) {
-      await sock.sendMessage("status@broadcast", { image: buffer, caption }, { statusJidList });
+      await sock.sendMessage("status@broadcast", { image: buffer, caption }, { broadcast: true, statusJidList });
     } else {
-      await sock.sendMessage("status@broadcast", { video: buffer, caption, gifPlayback: false }, { statusJidList });
+      await sock.sendMessage("status@broadcast", { video: buffer, caption, gifPlayback: false }, { broadcast: true, statusJidList });
     }
 
     await sock.sendMessage(msg.key.remoteJid, { react: { text: "✅", key: msg.key } });
-    logger.info(`📢 [Estados] Estado enviado a ${statusJidList.length} destinatario(s) (${tipo}).`);
+    logger.info(`📢 [Estados] Estado publicado para ${statusJidList.length} destinatarios (${tipo}).`);
   } catch (err) {
-    logger.error(`📢 [Estados] Error al publicar: ${err.message}`);
-    logger.error(err.stack || "");
+    logger.error(`📢 [Estados] Error: ${err.message}`);
     await sock.sendMessage(msg.key.remoteJid, { react: { text: "❌", key: msg.key } });
   }
 }
@@ -385,7 +376,7 @@ async function iniciarBot(intentosReconexion = 0) {
   const sock = makeWASocket({
     version,
     auth: state,
-    logger: pino({ level: "warn" }),   // 'silent' ocultaba errores internos de Baileys
+    logger: pino({ level: "silent" }),
     printQRInTerminal: false,
   });
 
