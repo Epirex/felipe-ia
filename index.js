@@ -309,17 +309,28 @@ async function manejarMensajeEstado(sock, msg) {
     logger.info(`📢 [Estados] Procesando ${tipo} del grupo de estados...`);
     const buffer = await downloadMediaMessage(msg, "buffer", {});
 
+    // WhatsApp requiere una lista de contactos para difundir el estado.
+    // Tomamos los JIDs individuales que el bot ya conoce (de chats anteriores).
+    const statusJidList = Object.keys(sock.contacts || {})
+      .filter(id => id.endsWith("@s.whatsapp.net"));
+
+    if (statusJidList.length === 0) {
+      logger.warn("📢 [Estados] Sin contactos conocidos aún. Enviá un mensaje al bot primero para que lo registre.");
+    }
+
+    const opciones = statusJidList.length > 0 ? { statusJidList } : {};
+
     if (imagen) {
-      await sock.sendMessage("status@broadcast", { image: buffer, caption });
+      await sock.sendMessage("status@broadcast", { image: buffer, caption }, opciones);
     } else {
-      await sock.sendMessage("status@broadcast", { video: buffer, caption, gifPlayback: false });
+      await sock.sendMessage("status@broadcast", { video: buffer, caption, gifPlayback: false }, opciones);
     }
 
     // Reaccionar con ✅ para confirmar la publicación
     await sock.sendMessage(msg.key.remoteJid, {
       react: { text: "✅", key: msg.key },
     });
-    logger.info(`📢 [Estados] Estado publicado exitosamente (${tipo}).`);
+    logger.info(`📢 [Estados] Estado publicado para ${statusJidList.length} contactos (${tipo}).`);
   } catch (err) {
     logger.error(`📢 [Estados] Error al publicar estado: ${err.message}`);
     // Reaccionar con ❌ para avisar del error
@@ -438,6 +449,9 @@ async function iniciarBot(intentosReconexion = 0) {
 
     const msg = messages[0];
     if (!msg.message || msg.key.fromMe) return;
+
+    // Ignorar estados de contactos (status@broadcast) para no responderlos
+    if (msg.key.remoteJid === "status@broadcast") return;
 
     // Solo responder en chats individuales, no en grupos...
     // EXCEPCIÓN: el grupo de estados se maneja aparte.
