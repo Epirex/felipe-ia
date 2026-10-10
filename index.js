@@ -297,31 +297,52 @@ async function enviarRespuesta(sock, jid, respuesta) {
 }
 
 // ── Publicador de estados de WhatsApp ────────────────────────
-// Reenvía la imagen/video del grupo a status@broadcast usando el protocolo
-// de "forward", igual que cuando un humano reenvía desde WhatsApp Web.
 async function manejarMensajeEstado(sock, msg) {
   const imagen = msg.message?.imageMessage;
   const video  = msg.message?.videoMessage;
 
   if (!imagen && !video) return;
 
-  const tipo = imagen ? "imagen" : "video";
+  const tipo    = imagen ? "imagen" : "video";
+  const caption = imagen?.caption || video?.caption || "";
 
   try {
-    logger.info(`📢 [Estados] Reenviando ${tipo} a estados...`);
+    logger.info(`📢 [Estados] Procesando ${tipo}...`);
+    const buffer = await downloadMediaMessage(msg, "buffer", {});
 
-    // Usar forward: exactamente como hace WhatsApp Web al "Reenviar a mi estado"
-    await sock.sendMessage("status@broadcast", { forward: msg });
+    // Armar la lista de JIDs en formato @s.whatsapp.net
+    const jidSet = new Set();
 
-    await sock.sendMessage(msg.key.remoteJid, {
-      react: { text: "✅", key: msg.key },
-    });
-    logger.info(`📢 [Estados] Estado publicado exitosamente vía forward (${tipo}).`);
+    // 1. El JID del propio bot (OBLIGATORIO para que aparezca en "Mi estado")
+    if (sock.user?.id) {
+      const propio = sock.user.id.replace(/:\d+/, ""); // quitar ":0" del device number
+      jidSet.add(propio.endsWith("@s.whatsapp.net") ? propio : propio + "@s.whatsapp.net");
+    }
+
+    // 2. Si está definido PHONE_NUMBER, incluir también
+    if (PHONE_NUMBER) {
+      jidSet.add(`${PHONE_NUMBER}@s.whatsapp.net`);
+    }
+
+    // 3. Contactos conocidos que estén en formato @s.whatsapp.net
+    for (const jid of contactosConocidos) {
+      if (jid.endsWith("@s.whatsapp.net")) jidSet.add(jid);
+    }
+
+    const statusJidList = [...jidSet];
+    logger.info(`📢 [Estados] statusJidList: ${statusJidList.join(", ")}`);
+
+    if (imagen) {
+      await sock.sendMessage("status@broadcast", { image: buffer, caption }, { broadcast: true, statusJidList });
+    } else {
+      await sock.sendMessage("status@broadcast", { video: buffer, caption, gifPlayback: false }, { broadcast: true, statusJidList });
+    }
+
+    await sock.sendMessage(msg.key.remoteJid, { react: { text: "✅", key: msg.key } });
+    logger.info(`📢 [Estados] Estado publicado para ${statusJidList.length} destinatarios (${tipo}).`);
   } catch (err) {
-    logger.error(`📢 [Estados] Error al publicar estado: ${err.message}`);
-    await sock.sendMessage(msg.key.remoteJid, {
-      react: { text: "❌", key: msg.key },
-    });
+    logger.error(`📢 [Estados] Error: ${err.message}`);
+    await sock.sendMessage(msg.key.remoteJid, { react: { text: "❌", key: msg.key } });
   }
 }
 
