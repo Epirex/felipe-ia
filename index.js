@@ -313,15 +313,26 @@ async function manejarMensajeEstado(sock, msg) {
     logger.info(`📢 [Estados] Procesando ${tipo} del grupo de estados...`);
     const buffer = await downloadMediaMessage(msg, "buffer", {});
 
-    // WhatsApp requiere una lista de contactos para difundir el estado.
-    // Usamos el Set propio que se llena con cada mensaje recibido por el bot.
-    const statusJidList = [...contactosConocidos];
-
-    if (statusJidList.length === 0) {
-      logger.warn("📢 [Estados] Sin contactos conocidos aún. Alguien tiene que escribirle al bot primero.");
+    // Obtener participantes del grupo en formato @s.whatsapp.net (correcto para statusJidList)
+    let statusJidList = [];
+    try {
+      const meta = await sock.groupMetadata(msg.key.remoteJid);
+      statusJidList = meta.participants
+        .map(p => p.id)
+        .filter(id => id.endsWith("@s.whatsapp.net"));
+      logger.info(`📢 [Estados] ${statusJidList.length} participantes del grupo como destinatarios.`);
+    } catch (e) {
+      logger.warn(`📢 [Estados] No se pudo obtener metadata del grupo: ${e.message}. Usando contactos conocidos.`);
+      // Fallback: usar contactos conocidos (pueden ser @lid, pero intentamos igual)
+      statusJidList = [...contactosConocidos].filter(id => id.endsWith("@s.whatsapp.net"));
     }
 
-    const opciones = statusJidList.length > 0 ? { statusJidList } : {};
+    if (statusJidList.length === 0) {
+      logger.warn("📢 [Estados] Lista de destinatarios vacía. El estado puede no ser visible.");
+    }
+
+    // broadcast: true es OBLIGATORIO para que WhatsApp procese el estado correctamente
+    const opciones = { broadcast: true, statusJidList };
 
     if (imagen) {
       await sock.sendMessage("status@broadcast", { image: buffer, caption }, opciones);
