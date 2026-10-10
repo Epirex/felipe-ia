@@ -62,7 +62,11 @@ function registrarContacto(jid) {
 }
 
 function getContactosConocidos() {
-  return db.prepare("SELECT jid FROM contactos WHERE jid LIKE '%@s.whatsapp.net'").all().map(r => r.jid);
+  // Incluimos tanto @s.whatsapp.net como @lid (protocolo multi-device de Baileys 6.x)
+  // Excluimos grupos (@g.us) y broadcast (@broadcast)
+  return db.prepare(
+    "SELECT jid FROM contactos WHERE jid NOT LIKE '%@g.us' AND jid NOT LIKE '%@broadcast'"
+  ).all().map(r => r.jid);
 }
 
 
