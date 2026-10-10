@@ -135,12 +135,29 @@ const faqs = [
     respuesta: { tipo: "submenu", id: "tramites", texto: submenus.tramites.texto },
   },
   {
-    palabras_clave: ["camion atmosferico", "atmosferico"],
+    palabras_clave: ["camion atmosferico", "atmosferico", "camion"],
     respuesta: submenus.tramites.opciones["1"].respuesta,
   },
   {
     palabras_clave: ["licencia", "carnet", "registro de conducir"],
     respuesta: submenus.tramites.opciones["2"].respuesta,
+  },
+  {
+    // Acceso directo a cada lugar turístico sin pasar por el submenú
+    palabras_clave: ["hosteria", "portezuelo", "cuesta del portezuelo"],
+    respuesta: submenus.turismo.opciones["1"].respuesta,
+  },
+  {
+    palabras_clave: ["cine teatro", "cine", "teatro", "cineteatrovalleviejo"],
+    respuesta: submenus.turismo.opciones["2"].respuesta,
+  },
+  {
+    palabras_clave: ["el portal", "portal", "mercado", "mayorista"],
+    respuesta: submenus.turismo.opciones["3"].respuesta,
+  },
+  {
+    palabras_clave: ["paseo artesanos", "artesanos", "artesanias", "feria"],
+    respuesta: submenus.turismo.opciones["4"].respuesta,
   },
   {
     palabras_clave: ["reclamo", "reclamos", "denuncia", "queja", "bache", "baches", "alumbrado", "luz", "basura", "residuos", "arbol", "rama", "calle", "4"],
@@ -195,7 +212,7 @@ const faqs = [
     palabras_clave: ["saludo especial", "saludo", "audio", "mensaje especial", "11"],
     respuesta: {
       tipo: "audio",
-      texto: "🎙️ *Saludo especial*\nEste es un saludo de Felipe IA para vos 👇",
+      texto: "🎙️ *Saludo especial*\nEste es un saludo de Felipe para vos 👇",
       archivo: "felipesaludo.ogg",
     },
   },
