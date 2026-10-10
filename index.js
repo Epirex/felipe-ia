@@ -127,7 +127,7 @@ function buscarRespuesta(mensaje, jid) {
   const palabras = texto.split(/[^a-z0-9ñ]+/);
   if (palabras.some((p) => VOLVER.includes(p))) {
     submenuActivo.delete(jid);
-    return { respuesta: bienvenida, faq: "volver", respondido: true };
+    return { respuesta: bienvenida, faq: "volver", respondido: true, enviarVolver: false };
   }
 
   // Si el usuario está dentro de un submenú y manda una opción válida
@@ -135,7 +135,7 @@ function buscarRespuesta(mensaje, jid) {
   if (activo && Date.now() - activo.ts < SUBMENU_TTL_MS) {
     const opcion = submenus[activo.id].opciones[texto];
     if (opcion) {
-      return { respuesta: opcion.respuesta, faq: `${activo.id}_${texto}`, respondido: true };
+      return { respuesta: opcion.respuesta, faq: `${activo.id}_${texto}`, respondido: true, enviarVolver: true };
     }
   }
 
@@ -147,12 +147,13 @@ function buscarRespuesta(mensaje, jid) {
       respuesta: `¡Hola ${nombre}! 😊 Un gusto. ¿Cómo estás?\n\nSoy *Felipe IA*, el asistente virtual del Municipio de Valle Viejo. Escribí *menú* para ver en qué puedo ayudarte.`,
       faq: "nombre",
       respondido: true,
+      enviarVolver: false,
     };
   }
 
   if (SALUDOS.some((s) => texto === normalizar(s) || texto.includes(normalizar(s)))) {
     submenuActivo.delete(jid);
-    return { respuesta: bienvenida, faq: "bienvenida", respondido: true };
+    return { respuesta: bienvenida, faq: "bienvenida", respondido: true, enviarVolver: false };
   }
 
   for (const item of faqs) {
@@ -167,17 +168,17 @@ function buscarRespuesta(mensaje, jid) {
       } else {
         submenuActivo.delete(jid);
       }
-      return { respuesta: item.respuesta, faq: item.palabras_clave[0], respondido: true };
+      return { respuesta: item.respuesta, faq: item.palabras_clave[0], respondido: true, enviarVolver: true };
     }
   }
 
   // Ninguna FAQ del municipio: probar charla casual
   const conv = buscarCharla(texto);
   if (conv) {
-    return { respuesta: elegir(conv.respuesta), faq: `charla:${conv.palabras_clave[0] || "risa"}`, respondido: true };
+    return { respuesta: elegir(conv.respuesta), faq: `charla:${conv.palabras_clave[0] || "risa"}`, respondido: true, enviarVolver: false };
   }
 
-  return { respuesta: noEntendido, faq: null, respondido: false };
+  return { respuesta: noEntendido, faq: null, respondido: false, enviarVolver: false };
 }
 
 // ── Despachador de respuestas según tipo ─────────────────────
@@ -420,7 +421,7 @@ async function iniciarBot(intentosReconexion = 0) {
     logger.info(`📩 Mensaje de ${remitente}: ${texto}`);
 
     try {
-      const { respuesta, faq, respondido } = buscarRespuesta(texto, remitente);
+      const { respuesta, faq, respondido, enviarVolver } = buscarRespuesta(texto, remitente);
 
       registrarRespuesta(remitente);
       registrarMensaje({ jid: remitente, pregunta: texto, faqDisparada: faq, respondido });
@@ -429,6 +430,13 @@ async function iniciarBot(intentosReconexion = 0) {
       await new Promise((r) => setTimeout(r, 800));
 
       await enviarRespuesta(sock, remitente, respuesta);
+
+      // Mensaje separado al final: cómo volver al menú
+      if (enviarVolver) {
+        await new Promise((r) => setTimeout(r, 600));
+        await sock.sendMessage(remitente, { text: "↩️ Escribí *menú* para volver al inicio o elegir otra opción." });
+      }
+
       logger.info(`✉️  Respuesta enviada a ${remitente} [faq: ${faq || "sin match"}].`);
     } catch (err) {
       logger.error(`No se pudo enviar respuesta a ${remitente}:`, err.message);

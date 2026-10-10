@@ -9,7 +9,7 @@ const submenus = {
       "📄 *Trámites disponibles*\n\n" +
       "1. Camión atmosférico\n" +
       "2. Licencia de conducir\n\n" +
-      "Escribí el número del trámite que necesitás, o *menú* para volver al inicio.",
+      "Escribí el número del trámite que necesitás.",
     opciones: {
       "1": {
         respuesta:
@@ -33,7 +33,7 @@ const submenus = {
       "2. Cine Teatro Valle Viejo\n" +
       "3. El Portal\n" +
       "4. Paseo de los Artesanos\n\n" +
-      "Escribí el número del lugar que querés conocer, o *menú* para volver al inicio.",
+      "Escribí el número del lugar que querés conocer.",
     opciones: {
       "1": {
         respuesta:
@@ -106,7 +106,7 @@ for (const [k, pin] of Object.entries(pinesTurismo)) {
   const op = submenus.turismo.opciones[k];
   op.respuesta = {
     tipo: "ubicacion",
-    texto: op.respuesta + "\n\n📍 Te comparto la ubicación 👇\n\nEscribí otro número para ver otro lugar, o *volver* para ir al menú.",
+    texto: op.respuesta + "\n\n📍 Te comparto la ubicación 👇",
     ...pin,
   };
 }
@@ -203,7 +203,7 @@ const faqs = [
     palabras_clave: ["posta", "postas", "postas sanitarias", "salud", "caps", "10"],
     respuesta: {
       tipo: "imagen",
-      texto: "🏥 *Postas Sanitarias*\n¡Te comparto un documento con todas las postas sanitarias y su información! 👇",
+      texto: "🏥 *Postas Sanitarias*\n¡Te comparto una imagen con todas las postas sanitarias y su información! 👇",
       archivo: "postas-sanitarias.jpg",
     },
   },
