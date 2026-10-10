@@ -41,6 +41,10 @@ const STATUS_GRUPO_ID = process.env.STATUS_GRUPO_ID || null;
 // En 0 = desactivado (los mensajes seguidos se responden siempre).
 const COOLDOWN_MS = 0;
 
+// JIDs de todos los usuarios que alguna vez le escribieron al bot.
+// Se usa para saber a quién enviar los estados de WhatsApp.
+const contactosConocidos = new Set();
+
 // ── Logs con fecha/hora ───────────────────────────────────────
 function log(nivel, ...args) {
   const ts = new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Catamarca" });
@@ -310,12 +314,11 @@ async function manejarMensajeEstado(sock, msg) {
     const buffer = await downloadMediaMessage(msg, "buffer", {});
 
     // WhatsApp requiere una lista de contactos para difundir el estado.
-    // Tomamos los JIDs individuales que el bot ya conoce (de chats anteriores).
-    const statusJidList = Object.keys(sock.contacts || {})
-      .filter(id => id.endsWith("@s.whatsapp.net"));
+    // Usamos el Set propio que se llena con cada mensaje recibido por el bot.
+    const statusJidList = [...contactosConocidos];
 
     if (statusJidList.length === 0) {
-      logger.warn("📢 [Estados] Sin contactos conocidos aún. Enviá un mensaje al bot primero para que lo registre.");
+      logger.warn("📢 [Estados] Sin contactos conocidos aún. Alguien tiene que escribirle al bot primero.");
     }
 
     const opciones = statusJidList.length > 0 ? { statusJidList } : {};
@@ -469,6 +472,9 @@ async function iniciarBot(intentosReconexion = 0) {
     }
 
     const remitente = msg.key.remoteJid;
+
+    // Registrar el JID para poder usarlo como destinatario de estados
+    contactosConocidos.add(remitente);
 
     // ── Rate limiting ─────────────────────────────────────────
     if (enCooldown(remitente)) {
