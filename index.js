@@ -4,13 +4,19 @@
 // No usa navegador/Puppeteer -> mucho más estable que whatsapp-web.js
 // ============================================================
 
-const makeWASocket = require("@whiskeysockets/baileys").default;
-const {
-  useMultiFileAuthState,
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-  downloadMediaMessage,
-} = require("@whiskeysockets/baileys");
+// Baileys 7 es un módulo ESM: se carga con import() dinámico dentro de iniciarBot().
+let makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion,
+    downloadMediaMessage, generateWAMessage;
+async function cargarBaileys() {
+  if (makeWASocket) return;
+  const b = await import("@whiskeysockets/baileys");
+  makeWASocket              = b.default || b.makeWASocket;
+  useMultiFileAuthState     = b.useMultiFileAuthState;
+  DisconnectReason          = b.DisconnectReason;
+  fetchLatestBaileysVersion = b.fetchLatestBaileysVersion;
+  downloadMediaMessage      = b.downloadMediaMessage;
+  generateWAMessage         = b.generateWAMessage;
+}
 const qrcode         = require("qrcode-terminal");
 const QRCode         = require("qrcode");          // genera imagen PNG del QR para el panel
 const pino = require("pino");
@@ -294,6 +300,74 @@ async function enviarRespuesta(sock, jid, respuesta) {
 }
 
 // ── Publicador de estados de WhatsApp ────────────────────────
+// WhatsApp rechaza (ack error 479) los estados armados como los arma Baileys por defecto
+// en cuentas migradas a LID. Baileys lo esconde y sendMessage "funciona" igual.
+// Por eso: armamos el estado a mano, esperamos el ACK real del servidor y, si lo rechaza,
+// probamos variantes de formato una tras otra hasta que alguna sea aceptada.
+// Una variante rechazada NO publica nada, así que no hay estados duplicados.
+// Cuando una funciona, queda recordada y se loguea su nombre (podés fijarla con STATUS_VARIANTE).
+const crypto = require("crypto");
+const META_STATUS = [{ tag: "meta", attrs: { status_setting: "contacts" } }];
+const VARIANTES_ESTADO = [
+  { nombre: "lid-sinattr",      lid: true,  attr: null },
+  { nombre: "lid-meta",         lid: true,  attr: null,  meta: true },
+  { nombre: "lid-attrlid-meta", lid: true,  attr: "lid", meta: true },
+  { nombre: "pn-sinattr",       lid: false, attr: null },
+  { nombre: "pn-meta",          lid: false, attr: null,  meta: true },
+  { nombre: "pn-attrpn",        lid: false, attr: "pn" },
+  { nombre: "lid-attrlid",      lid: true,  attr: "lid" },
+  // Diagnóstico: solo al propio bot. Si esta funciona y las otras no, el problema son los destinatarios.
+  { nombre: "solo-propio-lid",  lid: true,  attr: null,  soloPropio: true },
+];
+let varianteOk = process.env.STATUS_VARIANTE || null;
+
+function esperarAckEstado(sock, id, timeoutMs = 15000) {
+  return new Promise((resolve) => {
+    const fin = (r) => { clearTimeout(t); sock.ws.off("CB:ack,class:message", onAck); resolve(r); };
+    const onAck = (node) => {
+      if (node?.attrs?.id !== id) return;
+      fin(node.attrs.error ? { ok: false, error: node.attrs.error } : { ok: true });
+    };
+    const t = setTimeout(() => fin({ ok: false, error: "timeout (sin ack)" }), timeoutMs);
+    sock.ws.on("CB:ack,class:message", onAck);
+  });
+}
+
+async function armarDestinatariosEstado(sock, { lid, soloPropio }) {
+  const sinDevice = (j) => (j || "").replace(/:\d+(?=@)/, "");
+  const crudos = new Set();
+  const creds = sock.authState?.creds;
+  const propioPN  = sinDevice(creds?.me?.id || sock.user?.id);
+  const propioLID = sinDevice(creds?.me?.lid || sock.user?.lid);
+  if (propioPN)  crudos.add(propioPN);
+  if (propioLID) crudos.add(propioLID);
+  if (!soloPropio) {
+    if (PHONE_NUMBER) crudos.add(`${PHONE_NUMBER}@s.whatsapp.net`);
+    for (const n of (process.env.STATUS_DESTINATARIOS || "").split(",")) {
+      const num = n.trim().replace(/\D/g, "");
+      if (num) crudos.add(`${num}@s.whatsapp.net`);
+    }
+    for (const jid of getContactosConocidos()) crudos.add(sinDevice(jid));
+  }
+
+  const map = sock.signalRepository?.lidMapping;
+  const final = new Map(); // user -> jid (dedupe por usuario)
+  let omitidos = 0;
+  for (const jid of crudos) {
+    const esLid = jid.endsWith("@lid");
+    if (!esLid && !jid.endsWith("@s.whatsapp.net")) continue;
+    let destino = jid;
+    try {
+      if (lid && !esLid)      destino = sinDevice(await map.getLIDForPN(jid));
+      else if (!lid && esLid) destino = sinDevice(await map.getPNForLID(jid));
+    } catch { destino = null; }
+    if (!destino) { omitidos++; continue; }
+    final.set(destino.split("@")[0], destino);
+  }
+  if (omitidos) logger.warn(`📢 [Estados] ${omitidos} contacto(s) sin equivalencia ${lid ? "LID" : "teléfono"}, omitidos.`);
+  return [...final.values()];
+}
+
 async function manejarMensajeEstado(sock, msg) {
   const imagen = msg.message?.imageMessage;
   const video  = msg.message?.videoMessage;
@@ -306,53 +380,50 @@ async function manejarMensajeEstado(sock, msg) {
   try {
     logger.info(`📢 [Estados] Procesando ${tipo}...`);
     const buffer = await downloadMediaMessage(msg, "buffer", {});
+    const contenido = imagen ? { image: buffer, caption } : { video: buffer, caption, gifPlayback: false };
+    const fullMsg = await generateWAMessage("status@broadcast", contenido, {
+      logger: pino({ level: "silent" }),
+      userJid: sock.user.id,
+      upload: sock.waUploadToServer,
+    });
 
-    // Armar la lista de destinatarios. IMPORTANTE (Baileys 6.7.x):
-    // statusJidList SOLO acepta JIDs de teléfono (@s.whatsapp.net). Si se cuela un @lid,
-    // Baileys lo reconstruye como número falso y el servidor descarta el estado en silencio
-    // (el sendMessage no da error, pero el estado nunca aparece en "Novedades").
-    const jidSet = new Set();
-    const aPN = (jid) => {
-      if (!jid) return null;
-      const limpio = jid.replace(/:\d+(?=@)/, ""); // quitar ":12" del device number
-      return limpio.endsWith("@s.whatsapp.net") ? limpio : null; // descarta @lid, @g.us, etc.
-    };
+    // Primero la variante que ya funcionó (o la fijada por env); después el resto.
+    const orden = [...VARIANTES_ESTADO].sort((x, y) => (y.nombre === varianteOk) - (x.nombre === varianteOk));
+    const errores = [];
+    let publicado = null, nDest = 0;
 
-    // 1. El número propio del bot (creds.me.id es siempre formato teléfono)
-    const propio = aPN(sock.authState?.creds?.me?.id || sock.user?.id);
-    if (propio) jidSet.add(propio);
-
-    // 2. Si está definido PHONE_NUMBER, incluir también
-    if (PHONE_NUMBER) jidSet.add(`${PHONE_NUMBER}@s.whatsapp.net`);
-
-    // 3. Destinatarios fijos opcionales: STATUS_DESTINATARIOS="5493834111111,5493834222222"
-    for (const n of (process.env.STATUS_DESTINATARIOS || "").split(",")) {
-      const num = n.trim().replace(/\D/g, "");
-      if (num) jidSet.add(`${num}@s.whatsapp.net`);
+    for (const v of orden) {
+      if (process.env.STATUS_VARIANTE && v.nombre !== process.env.STATUS_VARIANTE) continue;
+      const statusJidList = await armarDestinatariosEstado(sock, v);
+      const id = "3EB0" + crypto.randomBytes(9).toString("hex").toUpperCase();
+      logger.info(`📢 [Estados] Probando variante "${v.nombre}" → ${statusJidList.length} destinatario(s): ${statusJidList.join(", ")}`);
+      const ackPromesa = esperarAckEstado(sock, id);
+      try {
+        await sock.relayMessage("status@broadcast", fullMsg.message, {
+          messageId: id,
+          statusJidList,
+          additionalAttributes: v.attr ? { addressing_mode: v.attr } : {},
+          additionalNodes: v.meta ? META_STATUS : undefined,
+        });
+      } catch (e) {
+        errores.push(`${v.nombre}: ${e.message}`);
+        logger.warn(`📢 [Estados] Variante "${v.nombre}" falló al enviar: ${e.message}`);
+        continue;
+      }
+      const ack = await ackPromesa;
+      if (ack.ok) { publicado = v; nDest = statusJidList.length; break; }
+      errores.push(`${v.nombre}: ${ack.error}`);
+      logger.warn(`📢 [Estados] Variante "${v.nombre}" rechazada por el servidor (error ${ack.error}).`);
     }
 
-    // 4. Contactos conocidos (DB), SOLO los que están en formato teléfono
-    let descartadosLid = 0;
-    for (const jid of getContactosConocidos()) {
-      const pn = aPN(jid);
-      if (pn) jidSet.add(pn); else descartadosLid++;
-    }
-    if (descartadosLid) logger.warn(`📢 [Estados] ${descartadosLid} contacto(s) @lid descartados (no soportados como destinatarios en esta versión de Baileys).`);
+    if (!publicado) throw new Error(`todas las variantes fueron rechazadas → ${errores.join(" | ")}`);
 
-    const statusJidList = [...jidSet];
-    logger.info(`📢 [Estados] statusJidList: ${statusJidList.join(", ")}`);
-
-    if (imagen) {
-      await sock.sendMessage("status@broadcast", { image: buffer, caption }, { broadcast: true, statusJidList });
-    } else {
-      await sock.sendMessage("status@broadcast", { video: buffer, caption, gifPlayback: false }, { broadcast: true, statusJidList });
-    }
-
+    varianteOk = publicado.nombre;
+    logger.info(`📢 [Estados] ✅ ACEPTADO con la variante "${publicado.nombre}" (${nDest} destinatarios, ${tipo}). Fijala con STATUS_VARIANTE=${publicado.nombre}`);
     await sock.sendMessage(msg.key.remoteJid, { react: { text: "✅", key: msg.key } });
-    logger.info(`📢 [Estados] Estado publicado para ${statusJidList.length} destinatarios (${tipo}).`);
   } catch (err) {
     logger.error(`📢 [Estados] Error: ${err.message}`);
-    await sock.sendMessage(msg.key.remoteJid, { react: { text: "❌", key: msg.key } });
+    await sock.sendMessage(msg.key.remoteJid, { react: { text: "❌", key: msg.key } }).catch(() => {});
   }
 }
 
@@ -363,6 +434,7 @@ let checkConexionInterval = null;
 async function iniciarBot(intentosReconexion = 0) {
   // Guarda la sesión en la carpeta ./auth para no tener que escanear
   // el QR cada vez que reinicies el bot.
+  await cargarBaileys();
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
   const { version } = await fetchLatestBaileysVersion();
 
@@ -476,6 +548,10 @@ async function iniciarBot(intentosReconexion = 0) {
         registrarContacto(contact.id);
         guardados++;
       }
+      // Si el contacto trae su número real (contact.jid), guardarlo: es el que sirve para estados
+      if (contact.jid && contact.jid.endsWith("@s.whatsapp.net")) {
+        registrarContacto(contact.jid);
+      }
     }
     if (guardados > 0) logger.info(`📇 [Contactos] ${guardados} contacto(s) sincronizado(s) en DB.`);
   });
@@ -509,6 +585,11 @@ async function iniciarBot(intentosReconexion = 0) {
 
     // Registrar el JID en la DB para poder usarlo como destinatario de estados
     registrarContacto(remitente);
+    // Si el chat viene como @lid, WhatsApp manda el número real en key.senderPn:
+    // lo guardamos porque los estados solo se pueden dirigir a números de teléfono.
+    if (msg.key.senderPn && msg.key.senderPn.endsWith("@s.whatsapp.net")) {
+      registrarContacto(msg.key.senderPn);
+    }
 
     // ── Rate limiting ─────────────────────────────────────────
     if (enCooldown(remitente)) {
