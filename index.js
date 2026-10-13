@@ -206,19 +206,23 @@ async function enviarRespuesta(sock, jid, respuesta) {
     return;
   }
 
-  if (respuesta.tipo === "imagen") {
+  if (respuesta.tipo === "imagen" || respuesta.tipo === "imagenes") {
     if (respuesta.texto) {
       await sock.sendMessage(jid, { text: respuesta.texto });
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 400));
     }
-    const imgPath = path.join(__dirname, "public", "docs", respuesta.archivo);
-    if (fs.existsSync(imgPath)) {
-      await sock.sendMessage(jid, { image: { url: imgPath } });
-    } else {
-      logger.error(`Falta el archivo ${imgPath}`);
-      await sock.sendMessage(jid, {
-        text: "⚠️ Por el momento no puedo enviarte la imagen. Consultalo en la web: https://valleviejo.gob.ar/",
-      });
+    const listaArchivos = respuesta.archivos || (respuesta.archivo ? [respuesta.archivo] : []);
+    for (const arch of listaArchivos) {
+      const imgPath = path.join(__dirname, "public", "docs", arch);
+      if (fs.existsSync(imgPath)) {
+        await sock.sendMessage(jid, { image: { url: imgPath } });
+        await new Promise((r) => setTimeout(r, 400));
+      } else {
+        logger.error(`Falta el archivo ${imgPath}`);
+        await sock.sendMessage(jid, {
+          text: "⚠️ Por el momento no puedo enviarte la imagen. Consultalo en la web: https://valleviejo.gob.ar/",
+        });
+      }
     }
     return;
   }

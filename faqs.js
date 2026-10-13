@@ -165,7 +165,7 @@ const faqs = [
       "📢 *Reclamos*\nCargá tu reclamo (alumbrado, limpieza, baches, etc.) completando este formulario:\nhttps://docs.google.com/forms/d/e/1FAIpQLSf01unpuwhlhJeduWUKxz1hdW2sOpPTcHbkkPbfg9yRkgb8kQ/viewform",
   },
   {
-    palabras_clave: ["casa de la juventud", "juventud", "jovenes", "8"],
+    palabras_clave: ["casa de la juventud", "juventud", "jovenes", "9"],
     respuesta:
       "🏠 *Casa de la Juventud*\n" +
       "Es un espacio municipal de encuentro, capacitación y contención destinado a los jóvenes del departamento, ubicado en Padre Esquiú 194, San Isidro, Catamarca.\n\n" +
@@ -178,7 +178,7 @@ const faqs = [
       "• Programa \"Cuenta Conmigo\": dispositivo de escucha y acompañamiento en salud mental, gratuito, anónimo y confidencial.",
   },
   {
-    palabras_clave: ["conviviendo", "programa conviviendo", "discapacidad", "9"],
+    palabras_clave: ["conviviendo", "programa conviviendo", "discapacidad", "10"],
     respuesta:
       "🤝 *Conviviendo*\n" +
       "Es un espacio municipal de igualdad, inclusión y aprendizaje destinado a personas con discapacidad en Valle Viejo.\n\n" +
@@ -188,7 +188,15 @@ const faqs = [
       "• Actividades: talleres de sensibilización, capacitación laboral, inclusión educativa y propuestas recreativas o de reflexión comunitaria.",
   },
   {
-    palabras_clave: ["medio ambiente", "ambiente", "ecologia", "reciclaje", "poda", "quema", "agua servida", "7"],
+    palabras_clave: ["taller", "talleres", "cursos", "talleres municipales", "7"],
+    respuesta: {
+      tipo: "imagenes",
+      texto: "🎨 *Talleres*\n¡Te comparto dos imágenes de nuestros talleres municipales! 😊👇",
+      archivos: ["talleres1.png", "talleres2.png"],
+    },
+  },
+  {
+    palabras_clave: ["medio ambiente", "ambiente", "ecologia", "reciclaje", "poda", "quema", "agua servida", "8"],
     respuesta:
       "🌿 *DIRECCIÓN DE MEDIO AMBIENTE*\n" +
       "Ponemos a tu disposición nuestro número de WhatsApp para recibir:\n\n" +
@@ -209,7 +217,7 @@ const faqs = [
   },
   {
     // Va ANTES de Postas: "saludo" contiene "salud", que es palabra clave de Postas
-    palabras_clave: ["saludo especial", "saludo", "audio", "mensaje especial", "11"],
+    palabras_clave: ["saludo especial", "saludo", "audio", "mensaje especial", "12"],
     respuesta: {
       tipo: "audio",
       texto: "🎙️ *Saludo especial*\nEste es un saludo de Felipe para vos 👇",
@@ -217,7 +225,7 @@ const faqs = [
     },
   },
   {
-    palabras_clave: ["posta", "postas", "postas sanitarias", "salud", "caps", "10"],
+    palabras_clave: ["posta", "postas", "postas sanitarias", "salud", "caps", "11"],
     respuesta: {
       tipo: "imagen",
       texto: "🏥 *Postas Sanitarias*\n¡Te comparto una imagen con todas las postas sanitarias y su información! 👇",
@@ -293,7 +301,7 @@ const charla = [
   },
   {
     palabras_clave: ["que podes hacer", "para que servis", "que sabes hacer", "que sabes", "en que me ayudas", "en que me podes ayudar", "para que sirves", "que funciones tenes"],
-    respuesta: "🤖 Puedo darte información del municipio: horarios, ubicación, trámites, reclamos, Casa de la Juventud, Conviviendo, Medio Ambiente, turismo, postas sanitarias y deporte.\n\nEscribí *menú* para ver todas las opciones.",
+    respuesta: "🤖 Puedo darte información del municipio: horarios, ubicación, trámites, reclamos, turismo, deporte, talleres, Medio Ambiente, Casa de la Juventud, Conviviendo y postas sanitarias.\n\nEscribí *menú* para ver todas las opciones.",
   },
   {
     palabras_clave: ["sos humano", "sos una persona", "sos real", "hay alguien ahi", "hablo con una persona", "sos robot", "sos una maquina", "sos ia", "sos inteligencia artificial"],
@@ -421,11 +429,12 @@ const bienvenida = {
     "4. Reclamos\n" +
     "5. Turismo\n" +
     "6. Deporte\n" +
-    "7. Medio Ambiente\n" +
-    "8. Casa de la Juventud\n" +
-    "9. Conviviendo\n" +
-    "10. Postas Sanitarias\n" +
-    "11. Saludo especial"
+    "7. Talleres\n" +
+    "8. Medio Ambiente\n" +
+    "9. Casa de la Juventud\n" +
+    "10. Conviviendo\n" +
+    "11. Postas Sanitarias\n" +
+    "12. Saludo especial"
 };
 
 // Mensaje cuando no se entiende la consulta
