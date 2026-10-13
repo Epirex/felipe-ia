@@ -166,26 +166,42 @@ const faqs = [
   },
   {
     palabras_clave: ["casa de la juventud", "juventud", "jovenes", "9"],
-    respuesta:
-      "🏠 *Casa de la Juventud*\n" +
-      "Es un espacio municipal de encuentro, capacitación y contención destinado a los jóvenes del departamento, ubicado en Padre Esquiú 194, San Isidro, Catamarca.\n\n" +
-      "*Información general*\n" +
-      "• Horarios de atención: lunes a viernes de 06:00 a 21:00 hs.\n" +
-      "• Teléfono / consultas: 3834 91-9763\n" +
-      "• Instagram: instagram.com/soyjovenvalleviejo\n\n" +
-      "*Actividades y servicios*\n" +
-      "• Talleres gratuitos: propuestas recreativas, culturales y de formación (como ritmos urbanos y actividades comunitarias).\n" +
-      "• Programa \"Cuenta Conmigo\": dispositivo de escucha y acompañamiento en salud mental, gratuito, anónimo y confidencial.",
+    respuesta: {
+      tipo: "ubicacion",
+      latitud: -28.4507078,
+      longitud: -65.7239599,
+      nombre: "Casa de la Juventud",
+      direccion: "Padre Esquiú 194, San Isidro, Valle Viejo, Catamarca",
+      texto:
+        "🏠 *Casa de la Juventud*\n" +
+        "Es un espacio municipal de encuentro, capacitación y contención destinado a los jóvenes del departamento, ubicado en Padre Esquiú 194, San Isidro, Catamarca.\n\n" +
+        "*Información general*\n" +
+        "• Horarios de atención: lunes a viernes de 06:00 a 21:00 hs.\n" +
+        "• Teléfono / consultas: 3834 91-9763\n" +
+        "• Instagram: instagram.com/soyjovenvalleviejo\n\n" +
+        "*Actividades y servicios*\n" +
+        "• Talleres gratuitos: propuestas recreativas, culturales y de formación (como ritmos urbanos y actividades comunitarias).\n" +
+        "• Programa \"Cuenta Conmigo\": dispositivo de escucha y acompañamiento en salud mental, gratuito, anónimo y confidencial.\n\n" +
+        "📍 Te comparto el pin en el mapa 👇",
+    },
   },
   {
     palabras_clave: ["conviviendo", "programa conviviendo", "discapacidad", "10"],
-    respuesta:
-      "🤝 *Conviviendo*\n" +
-      "Es un espacio municipal de igualdad, inclusión y aprendizaje destinado a personas con discapacidad en Valle Viejo.\n\n" +
-      "*Información general*\n" +
-      "• Dirección: Hignio Rizo 136, Villa Dolores (frente a la Plaza Ramón S. Castillo).\n" +
-      "• Horarios de atención: lunes a viernes de 08:00 a 13:00 y de 15:00 a 20:00.\n" +
-      "• Actividades: talleres de sensibilización, capacitación laboral, inclusión educativa y propuestas recreativas o de reflexión comunitaria.",
+    respuesta: {
+      tipo: "ubicacion",
+      latitud: -28.4487734,
+      longitud: -65.7228675,
+      nombre: "Espacio Conviviendo",
+      direccion: "Higinio Rizo 136, Villa Dolores, Valle Viejo, Catamarca",
+      texto:
+        "🤝 *Conviviendo*\n" +
+        "Es un espacio municipal de igualdad, inclusión y aprendizaje destinado a personas con discapacidad en Valle Viejo.\n\n" +
+        "*Información general*\n" +
+        "• Dirección: Higinio Rizo 136, Villa Dolores (frente a la Plaza Ramón S. Castillo).\n" +
+        "• Horarios de atención: lunes a viernes de 08:00 a 13:00 y de 15:00 a 20:00.\n" +
+        "• Actividades: talleres de sensibilización, capacitación laboral, inclusión educativa y propuestas recreativas o de reflexión comunitaria.\n\n" +
+        "📍 Te comparto el pin en el mapa 👇",
+    },
   },
   {
     palabras_clave: ["taller", "talleres", "cursos", "talleres municipales", "7"],
