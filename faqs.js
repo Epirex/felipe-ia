@@ -41,7 +41,7 @@ const submenus = {
           "Ubicada en la cima de la tradicional Cuesta del Portezuelo, sobre la Ruta Provincial N° 42, en Valle Viejo.\n\n" +
           "*Información general*\n" +
           "• Contacto y reservas: Teléfono / WhatsApp +54 383 434-5564 (reservas obligatorias por WhatsApp).\n" +
-          "• Instagram: https://www.instagram.com/hosteriacuestaelportezuelo/\n\n" +
+          "• Instagram: instagram.com/hosteriacuestaelportezuelo\n\n" +
           "*Servicios e instalaciones*\n" +
           "• Alojamiento: 8 habitaciones dobles con aire acondicionado frío/calor, Wi-Fi, Smart TV, agua caliente y desayuno incluido.\n" +
           "• Gastronomía: restaurante y cafetería abiertos todos los días (desayunos, almuerzos, meriendas buffet y cenas) con vistas panorámicas.\n\n" +
@@ -57,7 +57,7 @@ const submenus = {
           "*Información general*\n" +
           "• WhatsApp: +54 383 512-6036\n" +
           "• Sitio web: https://cine.valleviejo.gob.ar/\n" +
-          "• Instagram: https://www.instagram.com/cineteatrovalleviejo/\n\n" +
+          "• Instagram: instagram.com/cineteatrovalleviejo\n\n" +
           "*Servicios e instalaciones*\n" +
           "• Sala cerrada con capacidad para 214 butacas, con espacios reservados para personas con discapacidad (CUD) y baños adaptados.\n" +
           "• Escenario de doble apertura: espectáculos en el auditorio interior o al aire libre hacia la plaza.\n" +
@@ -74,7 +74,7 @@ const submenus = {
           "• Dirección: Av. Presidente Castillo esquina Horacio Brunello (frente a Cotali)\n" +
           "• Horarios: todos los sábados de 09:00 a 18:00 hs.\n" +
           "• Rubros: carnicería, pollería, lácteos, pastas, frutas, verduras, bebidas, productos sin TACC y artículos de limpieza.\n" +
-          "• Instagram: https://www.instagram.com/portalvalleviejo/",
+          "• Instagram: instagram.com/portalvalleviejo",
       },
       "4": {
         respuesta:
@@ -172,7 +172,7 @@ const faqs = [
       "*Información general*\n" +
       "• Horarios de atención: lunes a viernes de 06:00 a 21:00 hs.\n" +
       "• Teléfono / consultas: 3834 91-9763\n" +
-      "• Redes sociales: @soyjovenvalleviejo\n\n" +
+      "• Instagram: instagram.com/soyjovenvalleviejo\n\n" +
       "*Actividades y servicios*\n" +
       "• Talleres gratuitos: propuestas recreativas, culturales y de formación (como ritmos urbanos y actividades comunitarias).\n" +
       "• Programa \"Cuenta Conmigo\": dispositivo de escucha y acompañamiento en salud mental, gratuito, anónimo y confidencial.",
@@ -235,12 +235,12 @@ const faqs = [
   {
     palabras_clave: ["deporte", "deportes", "polideportivo", "canchas", "6"],
     respuesta:
-      "⚽ *Deporte*\nSeguí todas las novedades sobre el deporte en Valle Viejo en su Instagram oficial:\nhttps://www.instagram.com/deporte.valleviejo/",
+      "⚽ *Deporte*\nSeguí todas las novedades sobre el deporte en Valle Viejo en su Instagram oficial:\ninstagram.com/deporte.valleviejo",
   },
   {
     palabras_clave: ["contacto", "telefono", "numero", "llamar", "email", "correo"],
     respuesta:
-      "📞 *Contacto*\nTeléfono: 03834443303\nFacebook: https://www.facebook.com/municipiodevalleviejo/\nInstagram: https://www.instagram.com/valleviejociudad/",
+      "📞 *Contacto*\nTeléfono: 03834443303\nFacebook: https://www.facebook.com/municipiodevalleviejo/\nInstagram: instagram.com/valleviejociudad",
   },
   // ---- Estas NO aparecen en el menú, solo responden si preguntan directo ----
   {
