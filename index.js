@@ -181,7 +181,8 @@ function buscarRespuesta(mensaje, jid) {
       } else {
         submenuActivo.delete(jid);
       }
-      return { respuesta: item.respuesta, faq: item.palabras_clave[0], respondido: true, enviarVolver: true };
+      const enviarVolver = item.enviarVolver !== undefined ? item.enviarVolver : true;
+      return { respuesta: item.respuesta, faq: item.palabras_clave[0], respondido: true, enviarVolver };
     }
   }
 

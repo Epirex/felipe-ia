@@ -258,7 +258,20 @@ const faqs = [
     respuesta:
       "📞 *Contacto*\nTeléfono: 03834443303\nFacebook: https://www.facebook.com/municipiodevalleviejo/\nInstagram: instagram.com/valleviejociudad",
   },
-  // ---- Estas NO aparecen en el menú, solo responden si preguntan directo ----
+];
+
+// ── Charla casual ─────────────────────────────────────────────
+// Se consulta solo si ninguna FAQ coincidió. Coincide por palabra/frase completa
+// (no por substring). `exacto: true` => el mensaje debe ser exactamente esa palabra.
+// `respuesta` puede ser: string, array de strings (se elige uno al azar) o función.
+const hoyAR = (opts) => new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Catamarca", ...opts });
+
+const charla = [
+  {
+    palabras_clave: ["como estas", "como andas", "que tal", "todo bien", "como va"],
+    respuesta:
+      "😊 ¡Todo bien por acá, gracias por preguntar! Listo para ayudarte con lo que necesites del municipio.",
+  },
   {
     palabras_clave: ["quien sos", "quien eres", "como te llamas", "tu nombre", "eres un bot", "sos un bot"],
     respuesta:
@@ -269,20 +282,6 @@ const faqs = [
     respuesta:
       "👨‍💻 Fui creado por Esteban Guzzo en la Direccion de Informatica de la Municipalidad de Valle Viejo.",
   },
-  {
-    palabras_clave: ["como estas", "como andas", "que tal", "todo bien", "como va"],
-    respuesta:
-      "😊 ¡Todo bien por acá, gracias por preguntar! Listo para ayudarte con lo que necesites del municipio.",
-  },
-];
-
-// ── Charla casual ─────────────────────────────────────────────
-// Se consulta solo si ninguna FAQ coincidió. Coincide por palabra/frase completa
-// (no por substring). `exacto: true` => el mensaje debe ser exactamente esa palabra.
-// `respuesta` puede ser: string, array de strings (se elige uno al azar) o función.
-const hoyAR = (opts) => new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Catamarca", ...opts });
-
-const charla = [
   {
     palabras_clave: ["gracias", "muchas gracias", "te agradezco", "mil gracias"],
     respuesta: ["¡De nada! 😊 Para eso estoy.", "¡No hay de qué! Cualquier otra consulta, escribime. 🙌", "¡Un gusto ayudarte! 💙"],
