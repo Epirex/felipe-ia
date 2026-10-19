@@ -609,7 +609,31 @@ async function iniciarBot(intentosReconexion = 0) {
       msg.message.extendedTextMessage?.text ||
       msg.message.listResponseMessage?.singleSelectReply?.selectedRowId ||
       msg.message.imageMessage?.caption ||
+      msg.message.videoMessage?.caption ||
       "";
+
+    // ── Imágenes o videos sin texto ───────────────────────────
+    if (!texto && (msg.message.imageMessage || msg.message.videoMessage)) {
+      const esVideo = Boolean(msg.message.videoMessage);
+      logger.info(`📷 ${esVideo ? "Video" : "Imagen"} sin texto de ${remitente}`);
+      registrarRespuesta(remitente);
+      registrarMensaje({
+        jid: remitente,
+        pregunta: esVideo ? "🎥 [Video]" : "📷 [Imagen]",
+        faqDisparada: "media_sin_texto",
+        respondido: true,
+      });
+      await sock.sendPresenceUpdate("composing", remitente);
+      await new Promise((r) => setTimeout(r, 600));
+      await sock.sendMessage(remitente, {
+        text:
+          `📷 ¡Recibí tu ${esVideo ? "video" : "imagen"}! Por ahora no puedo ver ${esVideo ? "videos" : "fotos"}.\n\n` +
+          "Si es por un *reclamo*, podés cargarlo en este formulario:\n" +
+          "https://docs.google.com/forms/d/e/1FAIpQLSf01unpuwhlhJeduWUKxz1hdW2sOpPTcHbkkPbfg9yRkgb8kQ/viewform\n\n" +
+          "También podés escribirme tu consulta con texto o mandar *menú* para ver las opciones.",
+      });
+      return;
+    }
 
     // ── Notas de voz / audios: transcribir con Groq ───────────
     let esAudio = false;
