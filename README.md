@@ -49,6 +49,7 @@ Para que el bot funcione 24/7 en producción (Railway), debés configurar las si
 | `PHONE_NUMBER` | (Opcional) Tu número con código de país para vincular usando código en vez de QR (ej: `5493834...`). |
 | `RESEND_API_KEY` | (Opcional) API Key de Resend para enviar alertas de desconexión por correo. |
 | `ALERT_EMAIL_TO` | (Opcional) Correo electrónico que recibirá las alertas (ej: el tuyo personal). |
+| `GROQ_API_KEY` | (Opcional) API Key de [Groq](https://console.groq.com) para transcribir notas de voz con Whisper. Sin ella, el bot pide que le escriban. |
 | `TZ` | Zona horaria (ej: `America/Argentina/Catamarca`) para que las fechas coincidan localmente. |
 
 ### Configurar Healthcheck en Railway

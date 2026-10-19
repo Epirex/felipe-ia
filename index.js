@@ -27,6 +27,7 @@ const { registrarMensaje, registrarContacto, getContactosConocidos } = require("
 const { iniciarPanel }     = require("./panel");
 const botState             = require("./state");
 const { notificarAlerta }  = require("./alertas");
+const { transcribirAudio, transcripcionDisponible, MAX_SEGUNDOS_AUDIO } = require("./transcripcion");
 
 // ── Configuración ────────────────────────────────────────────
 // Carpeta donde Baileys guarda la sesión de WhatsApp
@@ -603,12 +604,48 @@ async function iniciarBot(intentosReconexion = 0) {
     }
 
     // Captura texto normal Y selecciones de lista interactiva
-    const texto =
+    let texto =
       msg.message.conversation ||
       msg.message.extendedTextMessage?.text ||
       msg.message.listResponseMessage?.singleSelectReply?.selectedRowId ||
       msg.message.imageMessage?.caption ||
       "";
+
+    // ── Notas de voz / audios: transcribir con Groq ───────────
+    let esAudio = false;
+    const audioMsg = msg.message.audioMessage;
+    if (!texto && audioMsg) {
+      esAudio = true;
+      const pedirTexto = "🎙️ ¡Perdón! No pude escuchar tu audio. ¿Me lo escribís? También podés escribir *menú* para ver las opciones.";
+      const segundos = audioMsg.seconds || 0;
+
+      if (!transcripcionDisponible()) {
+        await sock.sendMessage(remitente, { text: pedirTexto });
+        return;
+      }
+      if (segundos > MAX_SEGUNDOS_AUDIO) {
+        await sock.sendMessage(remitente, {
+          text: `🎙️ Tu audio es un poco largo (más de ${MAX_SEGUNDOS_AUDIO} segundos). ¿Me lo podés mandar más cortito o escribirlo?`,
+        });
+        return;
+      }
+
+      try {
+        await sock.sendPresenceUpdate("composing", remitente);
+        const buffer = await downloadMediaMessage(msg, "buffer", {});
+        texto = await transcribirAudio(buffer);
+        logger.info(`🎙️ Audio de ${remitente} (${segundos}s) transcripto: "${texto}"`);
+      } catch (err) {
+        logger.error(`🎙️ Error transcribiendo audio de ${remitente}: ${err.message}`);
+        await sock.sendMessage(remitente, { text: pedirTexto });
+        return;
+      }
+
+      if (!texto) {
+        await sock.sendMessage(remitente, { text: pedirTexto });
+        return;
+      }
+    }
 
     if (!texto) return;
 
@@ -618,7 +655,7 @@ async function iniciarBot(intentosReconexion = 0) {
       const { respuesta, faq, respondido, enviarVolver } = buscarRespuesta(texto, remitente);
 
       registrarRespuesta(remitente);
-      registrarMensaje({ jid: remitente, pregunta: texto, faqDisparada: faq, respondido });
+      registrarMensaje({ jid: remitente, pregunta: esAudio ? `🎙️ ${texto}` : texto, faqDisparada: faq, respondido });
 
       await sock.sendPresenceUpdate("composing", remitente);
       await new Promise((r) => setTimeout(r, 800));
