@@ -11,6 +11,11 @@ const {
   getResumenTotal,
   getTopFaqs,
   getNoRespondidos,
+  descartarNoRespondida,
+  descartarTodasNoRespondidas,
+  getUltimosMensajes,
+  getMensajesParaCsv,
+  getDistribucionTipos,
   getMensajesPorPeriodo,
 } = require("./db");
 const botState = require("./state");
@@ -110,6 +115,7 @@ function basicAuth(req, res, next) {
 app.use("/audio", express.static(path.join(__dirname, "public", "audio")));
 
 app.use(basicAuth);
+app.use(express.json());
 
 // ── Dashboard HTML ────────────────────────────────────────────
 app.get("/", (req, res) => {
@@ -197,12 +203,70 @@ app.get("/api/stats", (req, res) => {
   try {
     res.json({
       resumen:       getResumenTotal(),
-      topFaqs:       getTopFaqs(10),
+      topFaqs:       getTopFaqs(12),
       noRespondidos: getNoRespondidos(20),
       periodos:      getMensajesPorPeriodo(),
+      distribucion:  getDistribucionTipos(),
+      ultimos:       getUltimosMensajes(20),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── API: descartar preguntas sin respuesta ────────────────────
+app.post("/api/no-respondidos/descartar", (req, res) => {
+  try {
+    const { pregunta, todas } = req.body || {};
+    if (todas) {
+      descartarTodasNoRespondidas();
+      return res.json({ ok: true });
+    }
+    if (typeof pregunta === "string" && pregunta.trim()) {
+      descartarNoRespondida(pregunta);
+      return res.json({ ok: true });
+    }
+    res.status(400).json({ error: "Parámetros inválidos" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── API: exportar historial a CSV (compatible con Excel ES) ───
+function escaparCsv(val) {
+  if (val == null) return "";
+  let s = String(val).replace(/\r?\n/g, " ");
+  // Evitar inyección de fórmulas en Excel
+  if (/^[=+\-@]/.test(s)) s = "'" + s;
+  if (/[;"']/.test(s)) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+app.get("/api/export/csv", (req, res) => {
+  try {
+    const filas = getMensajesParaCsv(5000);
+    const encabezado = "ID;Fecha y Hora;Usuario (Hash);Mensaje;Tema Detectado;Estado\r\n";
+    const cuerpo = filas.map(f => {
+      const estado = f.respondido === 1 ? "Respondido" : f.respondido === 2 ? "Descartado" : "Sin respuesta";
+      return [
+        f.id,
+        escaparCsv(f.fecha),
+        escaparCsv(f.usuario_hash),
+        escaparCsv(f.pregunta),
+        escaparCsv(f.faq_disparada || "Sin coincidencia"),
+        estado,
+      ].join(";");
+    }).join("\r\n");
+
+    const fechaHoy = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="felipe-ia-reporte-${fechaHoy}.csv"`);
+    // \uFEFF = BOM UTF-8 para que Excel en español reconozca tildes y emojis automáticamente
+    res.send("\uFEFF" + encabezado + cuerpo);
+  } catch (err) {
+    res.status(500).send("Error al generar CSV: " + err.message);
   }
 });
 

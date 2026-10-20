@@ -88,12 +88,13 @@ function getResumenTotal() {
   const total     = db.prepare("SELECT COUNT(*) as n FROM mensajes").get().n;
   const sinResp   = db.prepare("SELECT COUNT(*) as n FROM mensajes WHERE respondido = 0").get().n;
   const usuarios  = db.prepare("SELECT COUNT(DISTINCT usuario_hash) as n FROM mensajes").get().n;
+  const audios    = db.prepare("SELECT COUNT(*) as n FROM mensajes WHERE pregunta LIKE '🎙️%'").get().n;
   const hoy       = db.prepare("SELECT COUNT(*) as n FROM mensajes WHERE date(fecha) = date('now','localtime')").get().n;
   const semana    = db.prepare("SELECT COUNT(*) as n FROM mensajes WHERE date(fecha) >= date('now','localtime','-7 days')").get().n;
   const mes       = db.prepare("SELECT COUNT(*) as n FROM mensajes WHERE strftime('%Y-%m',fecha) = strftime('%Y-%m','now','localtime')").get().n;
   const anio      = db.prepare("SELECT COUNT(*) as n FROM mensajes WHERE strftime('%Y',fecha) = strftime('%Y','now','localtime')").get().n;
 
-  return { totalMensajes: total, sinRespuesta: sinResp, usuariosUnicos: usuarios, hoy, estaSemana: semana, esteMes: mes, esteAnio: anio };
+  return { totalMensajes: total, sinRespuesta: sinResp, usuariosUnicos: usuarios, audios, hoy, estaSemana: semana, esteMes: mes, esteAnio: anio };
 }
 
 function getMensajesPorDia(dias = 30) {
@@ -123,12 +124,53 @@ function getMensajesPorMes(meses = 12) {
   `).all(`-${meses} months`);
 }
 
-function getTopFaqs(limit = 10) {
+function getMensajesPorHora() {
+  const filas = db.prepare(`
+    SELECT CAST(strftime('%H', fecha) AS INTEGER) as hora, COUNT(*) as total
+    FROM mensajes
+    GROUP BY hora ORDER BY hora ASC
+  `).all();
+  const mapa = new Map(filas.map(f => [f.hora, f.total]));
+  return Array.from({ length: 24 }, (_, h) => ({
+    hora: `${String(h).padStart(2, "0")}:00`,
+    total: mapa.get(h) || 0,
+  }));
+}
+
+function getDistribucionTipos() {
+  const municipales = db.prepare(`
+    SELECT COUNT(*) as n FROM mensajes
+    WHERE respondido != 0
+      AND faq_disparada IS NOT NULL
+      AND faq_disparada NOT IN ('bienvenida', 'volver', 'nombre', 'media_sin_texto')
+      AND faq_disparada NOT LIKE 'charla:%'
+  `).get().n;
+
+  const menu = db.prepare(`
+    SELECT COUNT(*) as n FROM mensajes
+    WHERE faq_disparada IN ('bienvenida', 'volver')
+  `).get().n;
+
+  const charla = db.prepare(`
+    SELECT COUNT(*) as n FROM mensajes
+    WHERE faq_disparada LIKE 'charla:%' OR faq_disparada = 'nombre'
+  `).get().n;
+
+  const sinRespuesta = db.prepare(`
+    SELECT COUNT(*) as n FROM mensajes
+    WHERE respondido = 0
+  `).get().n;
+
+  return { municipales, menu, charla, sinRespuesta };
+}
+
+function getTopFaqs(limit = 12) {
   return db.prepare(`
     SELECT faq_disparada, COUNT(*) as total
     FROM mensajes
     WHERE faq_disparada IS NOT NULL
-      AND faq_disparada NOT IN ('bienvenida')
+      AND faq_disparada NOT IN ('bienvenida', 'volver', 'nombre', 'media_sin_texto')
+      AND faq_disparada NOT LIKE 'charla:%'
     GROUP BY faq_disparada
     ORDER BY total DESC
     LIMIT ?
@@ -137,11 +179,45 @@ function getTopFaqs(limit = 10) {
 
 function getNoRespondidos(limit = 20) {
   return db.prepare(`
-    SELECT pregunta, COUNT(*) as total
+    SELECT MIN(pregunta) as pregunta, COUNT(*) as total, MAX(fecha) as ultima_fecha
     FROM mensajes
     WHERE respondido = 0
     GROUP BY lower(trim(pregunta))
-    ORDER BY total DESC
+    ORDER BY total DESC, ultima_fecha DESC
+    LIMIT ?
+  `).all(limit);
+}
+
+function descartarNoRespondida(pregunta) {
+  return db.prepare(`
+    UPDATE mensajes
+    SET respondido = 2
+    WHERE respondido = 0 AND lower(trim(pregunta)) = lower(trim(?))
+  `).run(pregunta);
+}
+
+function descartarTodasNoRespondidas() {
+  return db.prepare(`
+    UPDATE mensajes
+    SET respondido = 2
+    WHERE respondido = 0
+  `).run();
+}
+
+function getUltimosMensajes(limit = 20) {
+  return db.prepare(`
+    SELECT id, fecha, usuario_hash, pregunta, faq_disparada, respondido
+    FROM mensajes
+    ORDER BY id DESC
+    LIMIT ?
+  `).all(limit);
+}
+
+function getMensajesParaCsv(limit = 5000) {
+  return db.prepare(`
+    SELECT id, fecha, usuario_hash, pregunta, faq_disparada, respondido
+    FROM mensajes
+    ORDER BY id DESC
     LIMIT ?
   `).all(limit);
 }
@@ -151,6 +227,7 @@ function getMensajesPorPeriodo() {
     porDia:    getMensajesPorDia(30),
     porSemana: getMensajesPorSemana(12),
     porMes:    getMensajesPorMes(12),
+    porHora:   getMensajesPorHora(),
   };
 }
 
@@ -161,5 +238,10 @@ module.exports = {
   getResumenTotal,
   getTopFaqs,
   getNoRespondidos,
+  descartarNoRespondida,
+  descartarTodasNoRespondidas,
+  getUltimosMensajes,
+  getMensajesParaCsv,
+  getDistribucionTipos,
   getMensajesPorPeriodo,
 };
