@@ -48,6 +48,11 @@ const STATUS_GRUPO_ID = process.env.STATUS_GRUPO_ID || null;
 // En 0 = desactivado (los mensajes seguidos se responden siempre).
 const COOLDOWN_MS = 0;
 
+// Límite por ventana: máximo VENTANA_MAX_MSGS mensajes por usuario cada VENTANA_MS.
+// Si lo supera, sus mensajes se ignoran (sin responder) hasta que la ventana se libere.
+const VENTANA_MS       = 60 * 1000;
+const VENTANA_MAX_MSGS = 50;
+
 
 // ── Logs con fecha/hora ───────────────────────────────────────
 function log(nivel, ...args) {
@@ -68,6 +73,36 @@ function enCooldown(jid) {
   const ultimo = ultimaRespuesta.get(jid);
   if (!ultimo) return false;
   return Date.now() - ultimo < COOLDOWN_MS;
+}
+
+// Límite por ventana deslizante: JID → { tiempos: [timestamps], avisado: bool }
+const ventanaMensajes = new Map();
+
+// Devuelve "ok" (puede seguir), "excedido" (recién superó el límite) o "bloqueado" (sigue excedido)
+function controlarVentana(jid) {
+  const ahora = Date.now();
+  const reg = ventanaMensajes.get(jid) || { tiempos: [], avisado: false };
+  reg.tiempos = reg.tiempos.filter((t) => ahora - t < VENTANA_MS);
+
+  if (reg.tiempos.length >= VENTANA_MAX_MSGS) {
+    // No se registra el mensaje ignorado: apenas pase la ventana vuelve a la normalidad
+    const primeraVez = !reg.avisado;
+    reg.avisado = true;
+    ventanaMensajes.set(jid, reg);
+    return primeraVez ? "excedido" : "bloqueado";
+  }
+
+  reg.tiempos.push(ahora);
+  reg.avisado = false;
+  ventanaMensajes.set(jid, reg);
+
+  // Limpiar usuarios inactivos para no acumular memoria
+  if (ventanaMensajes.size > 500) {
+    for (const [k, v] of ventanaMensajes) {
+      if (!v.tiempos.some((t) => ahora - t < VENTANA_MS)) ventanaMensajes.delete(k);
+    }
+  }
+  return "ok";
 }
 
 function registrarRespuesta(jid) {
@@ -607,6 +642,14 @@ async function iniciarBot(intentosReconexion = 0) {
     }
 
     // ── Rate limiting ─────────────────────────────────────────
+    const estadoVentana = controlarVentana(remitente);
+    if (estadoVentana !== "ok") {
+      // Se loguea solo la primera vez que se excede, para no llenar los logs
+      if (estadoVentana === "excedido") {
+        logger.warn(`🚫 ${remitente} superó ${VENTANA_MAX_MSGS} mensajes/min. Se ignoran sus mensajes hasta que baje el ritmo.`);
+      }
+      return;
+    }
     if (enCooldown(remitente)) {
       logger.warn(`⏳ Rate limit activo para ${remitente}, mensaje ignorado.`);
       return;
