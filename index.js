@@ -276,6 +276,11 @@ async function enviarRespuesta(sock, jid, respuesta) {
   if (respuesta.tipo === "bienvenida") {
     // Solo el texto del menú (el audio ahora se manda con la opción "Saludo especial")
     await sock.sendMessage(jid, { text: respuesta.texto });
+    // Mensaje aparte debajo del menú: invitar a agendar el número para ver los estados
+    await new Promise((r) => setTimeout(r, 600));
+    await sock.sendMessage(jid, {
+      text: "📲 *¡Agendá mi número!* Así vas a poder ver mis *estados*, donde publico novedades del municipio, y no te perdés ninguna.",
+    });
     return;
   }
 
