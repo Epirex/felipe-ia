@@ -494,7 +494,8 @@ async function iniciarBot(intentosReconexion = 0) {
     if (connection === "close") {
       botState.online      = false;
       botState.connectedAt = null;
-      botState.ultimaDesconexion = Date.now();
+      // Solo fijar el inicio de la caída la primera vez; los reintentos fallidos no deben reiniciar el contador de 5 min
+      if (!botState.ultimaDesconexion) botState.ultimaDesconexion = Date.now();
       
       const motivo = lastDisconnect?.error?.output?.statusCode;
       botState.motivoDesconexion = motivo;
@@ -517,8 +518,10 @@ async function iniciarBot(intentosReconexion = 0) {
         notificarAlerta("loggedOut", "🔒 Sesión de WhatsApp cerrada. Se requiere escanear el QR de nuevo. Entrá a /qr en el panel admin.", logger);
       }
     } else if (connection === "open") {
-      if (!botState.online && intentosReconexion > 0) {
-        notificarAlerta("recuperacion", "✅ Felipe IA volvió a estar en línea tras desconexión.", logger);
+      // Avisar la recuperación solo si se había avisado la caída prolongada (>5 min)
+      if (botState.alertaCaidaEnviada) {
+        notificarAlerta("recuperacion", "✅ Felipe IA volvió a estar en línea tras una caída de más de 5 minutos.", logger);
+        botState.alertaCaidaEnviada = false;
       }
       botState.online      = true;
       botState.connectedAt = Date.now();
@@ -537,7 +540,8 @@ async function iniciarBot(intentosReconexion = 0) {
     checkConexionInterval = setInterval(() => {
       if (!botState.online && botState.ultimaDesconexion) {
         const caidaMs = Date.now() - botState.ultimaDesconexion;
-        if (caidaMs > 5 * 60 * 1000) { // 5 minutos
+        if (caidaMs > 5 * 60 * 1000 && !botState.alertaCaidaEnviada) { // 5 minutos, un solo aviso por caída
+          botState.alertaCaidaEnviada = true;
           notificarAlerta("caida_prolongada", `⚠️ Felipe IA lleva más de 5 minutos desconectado. Reintentando reconexión internamente.`, logger);
         }
       }
