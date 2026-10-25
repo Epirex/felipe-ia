@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Felipe IA — Reclamos</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<style>
+  :root {
+    --primary: #00658e; --bg: #f6f9fb; --surface: #ffffff; --text: #191c1d;
+    --muted: #42474e; --line: #dee3ea; --head: #eef1f2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --primary: #82cfff; --bg: #101415; --surface: #191c1d; --text: #e1e3e4; --muted: #c2c7ce; --line: #42474e; --head: #232728; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Roboto', sans-serif; background: var(--bg); color: var(--text); }
+  header { background: #00658e; color: #fff; padding: 14px 24px; display: flex; align-items: center;
+           justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  header h1 { margin: 0; font-size: 20px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,.14); color: #fff;
+         border: 1px solid rgba(255,255,255,.25); padding: 8px 14px; border-radius: 999px; text-decoration: none;
+         font-size: 14px; cursor: pointer; font-family: inherit; }
+  .btn:hover { background: rgba(255,255,255,.26); }
+  main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+  .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .toolbar input { flex: 1; min-width: 220px; padding: 10px 14px; border-radius: 999px; border: 1px solid var(--line);
+                   background: var(--surface); color: var(--text); font-size: 14px; font-family: inherit; }
+  .count { color: var(--muted); font-size: 14px; }
+  .wrap { background: var(--surface); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.1); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--head); position: sticky; top: 0; white-space: nowrap; }
+  td.detalle { min-width: 320px; white-space: pre-wrap; word-break: break-word; }
+  td.nowrap { white-space: nowrap; }
+  .vacio { padding: 40px; text-align: center; color: var(--muted); }
+  .tag { background: var(--head); border-radius: 999px; padding: 2px 8px; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📢 Reclamos — Felipe IA</h1>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <a class="btn" href="/"><span class="material-symbols-outlined">arrow_back</span> Volver al panel</a>
+    <button class="btn" onclick="cargar()"><span class="material-symbols-outlined">refresh</span> Actualizar</button>
+    <a class="btn" href="/api/export/reclamos.xlsx"><span class="material-symbols-outlined">download</span> Descargar Excel</a>
+  </div>
+</header>
+<main>
+  <div class="toolbar">
+    <input id="buscar" type="search" placeholder="Buscar por nombre, DNI, domicilio o detalle..." oninput="render()">
+    <span class="count" id="contador"></span>
+  </div>
+  <div class="wrap">
+    <table>
+      <thead>
+        <tr><th>N°</th><th>Fecha</th><th>Nombre</th><th>DNI</th><th>Domicilio / lugar</th><th>Detalle</th><th>Teléfono</th><th>Vía</th></tr>
+      </thead>
+      <tbody id="filas"></tbody>
+    </table>
+    <div class="vacio" id="vacio" style="display:none">No hay reclamos para mostrar.</div>
+  </div>
+</main>
+<script>
+  let datos = [];
+
+  async function cargar() {
+    try {
+      const r = await fetch("/api/reclamos");
+      datos = (await r.json()).reclamos || [];
+    } catch (e) { datos = []; }
+    render();
+  }
+
+  // Se arma con textContent (nunca innerHTML) porque el contenido lo escribe el ciudadano
+  function celda(tr, texto, clase) {
+    const td = document.createElement("td");
+    td.textContent = texto == null ? "" : String(texto);
+    if (clase) td.className = clase;
+    tr.appendChild(td);
+  }
+
+  function render() {
+    const q = document.getElementById("buscar").value.trim().toLowerCase();
+    const lista = q
+      ? datos.filter(r => [r.nombre, r.dni, r.domicilio, r.detalle, r.telefono].join(" ").toLowerCase().includes(q))
+      : datos;
+    const tbody = document.getElementById("filas");
+    tbody.replaceChildren();
+    for (const r of lista) {
+      const tr = document.createElement("tr");
+      celda(tr, r.id, "nowrap");
+      celda(tr, r.fecha, "nowrap");
+      celda(tr, r.nombre);
+      celda(tr, r.dni, "nowrap");
+      celda(tr, r.domicilio);
+      celda(tr, r.detalle, "detalle");
+      celda(tr, r.telefono, "nowrap");
+      celda(tr, r.via_audio ? "Audio" : "Texto", "nowrap");
+      tbody.appendChild(tr);
+    }
+    document.getElementById("vacio").style.display = lista.length ? "none" : "block";
+    document.getElementById("contador").textContent = `${lista.length} reclamo${lista.length === 1 ? "" : "s"}`;
+  }
+
+  cargar();
+</script>
+</body>
+</html>

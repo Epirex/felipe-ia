@@ -23,6 +23,7 @@ const pino = require("pino");
 const fs = require("fs");
 const path = require("path");
 const { faqs, charla, submenus, bienvenida, noEntendido } = require("./faqs");
+const reclamos = require("./reclamos");
 const { registrarMensaje, registrarContacto, getContactosConocidos } = require("./db");
 const { iniciarPanel }     = require("./panel");
 const botState             = require("./state");
@@ -240,6 +241,13 @@ async function enviarRespuesta(sock, jid, respuesta) {
   }
   if (respuesta.tipo === "submenu") {
     await sock.sendMessage(jid, { text: respuesta.texto });
+    return;
+  }
+
+  if (respuesta.tipo === "reclamo") {
+    // Arranca la conversación guiada para cargar el reclamo (ver reclamos.js)
+    reclamos.iniciarReclamo(jid);
+    await sock.sendMessage(jid, { text: reclamos.MENSAJE_INICIO });
     return;
   }
 
@@ -668,6 +676,14 @@ async function iniciarBot(intentosReconexion = 0) {
     if (!texto && (msg.message.imageMessage || msg.message.videoMessage)) {
       const esVideo = Boolean(msg.message.videoMessage);
       logger.info(`📷 ${esVideo ? "Video" : "Imagen"} sin texto de ${remitente}`);
+
+      // En medio de un reclamo: pedir la respuesta por texto o audio y mantener el paso actual
+      if (reclamos.reclamoActivo(remitente)) {
+        await sock.sendMessage(remitente, {
+          text: `📷 Por ahora no puedo ver ${esVideo ? "videos" : "fotos"}. Respondeme con un *mensaje de texto o un audio* para seguir con tu reclamo, o escribí *cancelar* para salir.`,
+        });
+        return;
+      }
       registrarRespuesta(remitente);
       registrarMensaje({
         jid: remitente,
@@ -680,8 +696,7 @@ async function iniciarBot(intentosReconexion = 0) {
       await sock.sendMessage(remitente, {
         text:
           `📷 ¡Recibí tu ${esVideo ? "video" : "imagen"}! Por ahora no puedo ver ${esVideo ? "videos" : "fotos"}.\n\n` +
-          "Si es por un *reclamo*, podés cargarlo en este formulario:\n" +
-          "https://docs.google.com/forms/d/e/1FAIpQLSf01unpuwhlhJeduWUKxz1hdW2sOpPTcHbkkPbfg9yRkgb8kQ/viewform\n\n" +
+          "Si es por un *reclamo*, escribí *4* y te ayudo a cargarlo.\n\n" +
           "También podés escribirme tu consulta con texto o mandar *menú* para ver las opciones.",
       });
       return;
@@ -710,7 +725,7 @@ async function iniciarBot(intentosReconexion = 0) {
         await sock.sendPresenceUpdate("composing", remitente);
         const buffer = await downloadMediaMessage(msg, "buffer", {});
         texto = await transcribirAudio(buffer);
-        logger.info(`🎙️ Audio de ${remitente} (${segundos}s) transcripto: "${texto}"`);
+        logger.info(`🎙️ Audio de ${remitente} (${segundos}s) transcripto: ${reclamos.reclamoActivo(remitente) ? "[oculto: reclamo en curso]" : `"${texto}"`}`);
       } catch (err) {
         logger.error(`🎙️ Error transcribiendo audio de ${remitente}: ${err.message}`);
         await sock.sendMessage(remitente, { text: pedirTexto });
@@ -724,6 +739,39 @@ async function iniciarBot(intentosReconexion = 0) {
     }
 
     if (!texto) return;
+
+    // ── Reclamo en curso: la conversación guiada tiene prioridad ──
+    // No se loguea ni se guarda el texto en "mensajes" porque incluye datos personales (DNI, nombre).
+    if (reclamos.reclamoActivo(remitente)) {
+      try {
+        registrarRespuesta(remitente);
+        await sock.sendPresenceUpdate("composing", remitente);
+        await new Promise((r) => setTimeout(r, 800));
+
+        if (reclamos.esCancelacion(texto)) {
+          reclamos.cancelarReclamo(remitente);
+          registrarMensaje({ jid: remitente, pregunta: "[Reclamo cancelado]", faqDisparada: "reclamo_cancelado", respondido: true });
+          await sock.sendMessage(remitente, { text: "❌ Cancelé tu reclamo. No se guardó nada." });
+          await new Promise((r) => setTimeout(r, 600));
+          await enviarRespuesta(sock, remitente, bienvenida);
+          return;
+        }
+
+        const telefono = (msg.key.senderPn || remitente).split("@")[0];
+        const { mensaje, terminado } = reclamos.procesarReclamo(remitente, texto, telefono, { viaAudio: esAudio });
+        registrarMensaje({
+          jid: remitente,
+          pregunta: terminado ? "[Reclamo registrado]" : "[Reclamo en curso]",
+          faqDisparada: terminado ? "reclamo_registrado" : "reclamo_paso",
+          respondido: true,
+        });
+        await sock.sendMessage(remitente, { text: mensaje });
+        if (terminado) logger.info(`📢 Reclamo nuevo registrado desde ${remitente}.`);
+      } catch (err) {
+        logger.error(`Error en reclamo de ${remitente}:`, err.message);
+      }
+      return;
+    }
 
     logger.info(`📩 Mensaje de ${remitente}: ${texto}`);
 

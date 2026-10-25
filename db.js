@@ -39,6 +39,18 @@ db.exec(`
     jid  TEXT PRIMARY KEY,
     visto_en TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
   );
+
+  CREATE TABLE IF NOT EXISTS reclamos (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha      TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+    nombre     TEXT    NOT NULL,
+    dni        TEXT    NOT NULL,
+    domicilio  TEXT    NOT NULL,
+    detalle    TEXT    NOT NULL,
+    telefono   TEXT,
+    via_audio  INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_reclamos_fecha ON reclamos(fecha);
 `);
 
 // ── Privacidad: hashear el JID del usuario ────────────────────
@@ -231,7 +243,27 @@ function getMensajesPorPeriodo() {
   };
 }
 
+// ── Reclamos ──────────────────────────────────────────────────
+// Se guardan con los datos reales que el ciudadano brinda (nombre, DNI, teléfono).
+function guardarReclamo({ nombre, dni, domicilio, detalle, telefono, viaAudio }) {
+  db.prepare(`
+    INSERT INTO reclamos (nombre, dni, domicilio, detalle, telefono, via_audio)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(nombre, dni, domicilio, detalle, telefono || null, viaAudio ? 1 : 0);
+}
+
+function getReclamos(limit = 5000) {
+  return db.prepare(`
+    SELECT id, fecha, nombre, dni, domicilio, detalle, telefono, via_audio
+    FROM reclamos
+    ORDER BY id DESC
+    LIMIT ?
+  `).all(limit);
+}
+
 module.exports = {
+  guardarReclamo,
+  getReclamos,
   registrarMensaje,
   registrarContacto,
   getContactosConocidos,

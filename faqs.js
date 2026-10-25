@@ -161,8 +161,8 @@ const faqs = [
   },
   {
     palabras_clave: ["reclamo", "reclamos", "denuncia", "queja", "bache", "baches", "alumbrado", "luz", "basura", "residuos", "arbol", "rama", "calle", "4"],
-    respuesta:
-      "📢 *Reclamos*\nCargá tu reclamo (alumbrado, limpieza, baches, etc.) completando este formulario:\nhttps://docs.google.com/forms/d/e/1FAIpQLSf01unpuwhlhJeduWUKxz1hdW2sOpPTcHbkkPbfg9yRkgb8kQ/viewform",
+    respuesta: { tipo: "reclamo" },
+    enviarVolver: false,
   },
   {
     palabras_clave: ["casa de la juventud", "juventud", "jovenes", "9"],
