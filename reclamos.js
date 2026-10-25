@@ -10,10 +10,28 @@ const { guardarReclamo } = require("./db");
 const RECLAMO_TTL_MS = 10 * 60 * 1000;
 const conversaciones = new Map(); // jid → { paso, datos, ts }
 
+const CATEGORIAS = [
+  "Cloacas",
+  "Bacheo",
+  "Tránsito",
+  "Salud",
+  "Recolección",
+  "Desmalezamiento",
+  "Desarrollo social",
+  "Obra pública",
+  "Alumbrado público",
+  "Otro",
+];
+
+const PREGUNTA_CATEGORIA =
+  "¿Qué *categoría* tiene tu reclamo? Respondeme con el *número*:\n\n" +
+  CATEGORIAS.map((c, i) => `${i + 1}. ${c}`).join("\n");
+
 const PREGUNTAS = {
   nombre:    "¿Me brindás tu *nombre completo*?",
   dni:       "¿Cuál es tu *DNI*?",
   domicilio: "¿Cuál es tu *domicilio o el lugar del problema*?",
+  categoria: PREGUNTA_CATEGORIA,
   detalle:
     "¿Podés comentarme *detalladamente tu reclamo en un solo mensaje*? Es importante que expliques todo en un solo mensaje así puedo guardar esa información completa en nuestro sistema 📝",
 };
@@ -85,8 +103,28 @@ function procesarReclamo(jid, texto, telefono, { viaAudio = false } = {}) {
         return { mensaje: "Necesito saber dónde es el problema. " + PREGUNTAS.domicilio, terminado: false };
       }
       c.datos.domicilio = valor;
+      c.paso = "categoria";
+      return { mensaje: PREGUNTAS.categoria, terminado: false };
+
+    case "categoria": {
+      // Acepta el número (1-10) o el nombre de la categoría (también por audio)
+      const norm = normalizar(valor).replace(/[^a-z0-9ñ ]/g, "").trim();
+      let categoria = null;
+      if (/^\d+$/.test(norm)) {
+        categoria = CATEGORIAS[Number(norm) - 1] || null;
+      } else if (norm.length >= 3) {
+        categoria = CATEGORIAS.find((cat) => {
+          const n = normalizar(cat);
+          return norm === n || norm.includes(n);
+        }) || null;
+      }
+      if (!categoria) {
+        return { mensaje: "No reconocí esa opción 🤔 Elegí un número del 1 al " + CATEGORIAS.length + ".\n\n" + PREGUNTAS.categoria, terminado: false };
+      }
+      c.datos.categoria = categoria;
       c.paso = "detalle";
-      return { mensaje: PREGUNTAS.detalle, terminado: false };
+      return { mensaje: `Anotado: *${categoria}* ✅\n\n` + PREGUNTAS.detalle, terminado: false };
+    }
 
     case "detalle":
       if (valor.length < 10) {
@@ -96,6 +134,7 @@ function procesarReclamo(jid, texto, telefono, { viaAudio = false } = {}) {
         nombre: c.datos.nombre,
         dni: c.datos.dni,
         domicilio: c.datos.domicilio,
+        categoria: c.datos.categoria,
         detalle: valor.slice(0, 2000),
         telefono,
         viaAudio,
@@ -106,6 +145,7 @@ function procesarReclamo(jid, texto, telefono, { viaAudio = false } = {}) {
 }
 
 module.exports = {
+  CATEGORIAS,
   MENSAJE_INICIO,
   iniciarReclamo,
   reclamoActivo,

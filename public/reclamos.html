@@ -9,10 +9,11 @@
 <style>
   :root {
     --primary: #00658e; --bg: #f6f9fb; --surface: #ffffff; --text: #191c1d;
-    --muted: #42474e; --line: #dee3ea; --head: #eef1f2;
+    --muted: #42474e; --line: #dee3ea; --head: #eef1f2; --danger: #ba1a1a; --track: #e8ebec;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --primary: #82cfff; --bg: #101415; --surface: #191c1d; --text: #e1e3e4; --muted: #c2c7ce; --line: #42474e; --head: #232728; }
+    :root { --primary: #82cfff; --bg: #101415; --surface: #191c1d; --text: #e1e3e4; --muted: #c2c7ce;
+            --line: #42474e; --head: #232728; --danger: #ffb4ab; --track: #2a2e2f; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: 'Roboto', sans-serif; background: var(--bg); color: var(--text); }
@@ -24,18 +25,66 @@
          font-size: 14px; cursor: pointer; font-family: inherit; }
   .btn:hover { background: rgba(255,255,255,.26); }
   main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+
+  /* Tarjetas de resumen */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .card { background: var(--surface); border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.1);
+          display: flex; align-items: center; gap: 14px; }
+  .card .ico { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: #fff; }
+  .card .num { font-size: 28px; font-weight: 700; line-height: 1; }
+  .card .lbl { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  /* Gráficos */
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .panel { background: var(--surface); border-radius: 14px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  .panel h2 { margin: 0 0 14px; font-size: 16px; }
+  .barra { display: grid; grid-template-columns: 130px 1fr 36px; align-items: center; gap: 10px; margin-bottom: 9px;
+           font-size: 13px; cursor: pointer; }
+  .barra:hover .nombre { text-decoration: underline; }
+  .barra .track { background: var(--track); border-radius: 999px; height: 12px; overflow: hidden; }
+  .barra .fill { height: 100%; border-radius: 999px; transition: width .4s; }
+  .barra .n { text-align: right; font-weight: 500; }
+  .dias { display: flex; align-items: flex-end; gap: 6px; height: 170px; padding-top: 10px; }
+  .dia { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; font-size: 11px; color: var(--muted); }
+  .dia .col { width: 100%; max-width: 28px; background: var(--primary); border-radius: 6px 6px 0 0; min-height: 2px; }
+  .dia .v { margin-bottom: 3px; color: var(--text); font-weight: 500; }
+  .vacio-chart { color: var(--muted); font-size: 14px; padding: 20px 0; text-align: center; }
+
+  /* Tabla */
   .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
-  .toolbar input { flex: 1; min-width: 220px; padding: 10px 14px; border-radius: 999px; border: 1px solid var(--line);
-                   background: var(--surface); color: var(--text); font-size: 14px; font-family: inherit; }
+  .toolbar input, .toolbar select, dialog input, dialog select, dialog textarea {
+    padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface);
+    color: var(--text); font-size: 14px; font-family: inherit; }
+  .toolbar input { flex: 1; min-width: 220px; border-radius: 999px; }
   .count { color: var(--muted); font-size: 14px; }
-  .wrap { background: var(--surface); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.1); overflow-x: auto; }
+  .wrap { background: var(--surface); border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.1); overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { background: var(--head); position: sticky; top: 0; white-space: nowrap; }
   td.detalle { min-width: 320px; white-space: pre-wrap; word-break: break-word; }
   td.nowrap { white-space: nowrap; }
+  .chip { display: inline-block; border-radius: 999px; padding: 3px 10px; font-size: 12px; color: #fff; white-space: nowrap; }
+  .acciones { display: flex; gap: 6px; }
+  .ib { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 10px;
+        width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer; }
+  .ib:hover { background: var(--head); }
+  .ib.del { color: var(--danger); }
   .vacio { padding: 40px; text-align: center; color: var(--muted); }
-  .tag { background: var(--head); border-radius: 999px; padding: 2px 8px; font-size: 12px; }
+
+  /* Diálogo de edición */
+  dialog { border: none; border-radius: 18px; padding: 0; width: min(560px, 94vw); background: var(--surface); color: var(--text);
+           box-shadow: 0 10px 40px rgba(0,0,0,.35); }
+  dialog::backdrop { background: rgba(0,0,0,.5); }
+  .dlg { padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+  .dlg h3 { margin: 0 0 4px; }
+  .dlg label { font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+  .dlg textarea { min-height: 120px; resize: vertical; }
+  .dlg .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .dlg .pie { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+  .b2 { padding: 10px 18px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; font-size: 14px; font-family: inherit; }
+  .b1 { padding: 10px 18px; border-radius: 999px; border: none; background: var(--primary); color: #fff; cursor: pointer; font-size: 14px; font-family: inherit; }
+  .b1.red { background: var(--danger); color: #fff; }
+  .err { color: var(--danger); font-size: 13px; min-height: 16px; }
 </style>
 </head>
 <body>
@@ -48,60 +97,256 @@
   </div>
 </header>
 <main>
+  <section class="cards" id="cards"></section>
+
+  <section class="charts">
+    <div class="panel">
+      <h2>Reclamos por categoría</h2>
+      <div id="chart-cat"></div>
+    </div>
+    <div class="panel">
+      <h2>Últimos 14 días</h2>
+      <div id="chart-dias"></div>
+    </div>
+  </section>
+
   <div class="toolbar">
     <input id="buscar" type="search" placeholder="Buscar por nombre, DNI, domicilio o detalle..." oninput="render()">
+    <select id="filtro-cat" onchange="render()"><option value="">Todas las categorías</option></select>
     <span class="count" id="contador"></span>
   </div>
   <div class="wrap">
     <table>
       <thead>
-        <tr><th>N°</th><th>Fecha</th><th>Nombre</th><th>DNI</th><th>Domicilio / lugar</th><th>Detalle</th><th>Teléfono</th><th>Vía</th></tr>
+        <tr><th>N°</th><th>Fecha</th><th>Categoría</th><th>Nombre</th><th>DNI</th><th>Domicilio / lugar</th><th>Detalle</th><th>Teléfono</th><th>Vía</th><th>Acciones</th></tr>
       </thead>
       <tbody id="filas"></tbody>
     </table>
     <div class="vacio" id="vacio" style="display:none">No hay reclamos para mostrar.</div>
   </div>
 </main>
+
+<!-- Editar -->
+<dialog id="dlg-editar">
+  <form class="dlg" onsubmit="guardarEdicion(event)">
+    <h3 id="dlg-titulo">Editar reclamo</h3>
+    <div class="fila">
+      <label>Nombre completo <input id="e-nombre" maxlength="100" required></label>
+      <label>DNI <input id="e-dni" maxlength="20" required></label>
+    </div>
+    <div class="fila">
+      <label>Domicilio / lugar <input id="e-domicilio" maxlength="200" required></label>
+      <label>Categoría <select id="e-categoria"></select></label>
+    </div>
+    <label>Teléfono <input id="e-telefono" maxlength="30"></label>
+    <label>Detalle del reclamo <textarea id="e-detalle" maxlength="2000" required></textarea></label>
+    <div class="err" id="e-err"></div>
+    <div class="pie">
+      <button type="button" class="b2" onclick="document.getElementById('dlg-editar').close()">Cancelar</button>
+      <button type="submit" class="b1">Guardar cambios</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Eliminar -->
+<dialog id="dlg-eliminar">
+  <div class="dlg">
+    <h3>Eliminar reclamo</h3>
+    <div id="del-texto"></div>
+    <div class="err" id="d-err"></div>
+    <div class="pie">
+      <button class="b2" onclick="document.getElementById('dlg-eliminar').close()">Cancelar</button>
+      <button class="b1 red" onclick="confirmarEliminar()">Eliminar</button>
+    </div>
+  </div>
+</dialog>
+
 <script>
-  let datos = [];
+  const COLORES = {
+    "Cloacas": "#6d4c41", "Bacheo": "#f57c00", "Tránsito": "#d32f2f", "Salud": "#388e3c",
+    "Recolección": "#0097a7", "Desmalezamiento": "#7cb342", "Desarrollo social": "#8e24aa",
+    "Obra pública": "#3949ab", "Alumbrado público": "#fbc02d", "Otro": "#78909c",
+  };
+  const colorDe = (c) => COLORES[c] || "#78909c";
+
+  let datos = [], stats = null, categorias = [], editandoId = null, eliminandoId = null;
 
   async function cargar() {
     try {
       const r = await fetch("/api/reclamos");
-      datos = (await r.json()).reclamos || [];
-    } catch (e) { datos = []; }
+      const j = await r.json();
+      datos = j.reclamos || []; stats = j.stats; categorias = j.categorias || [];
+    } catch (e) { datos = []; stats = null; }
+    prepararSelects();
+    renderStats();
     render();
   }
 
-  // Se arma con textContent (nunca innerHTML) porque el contenido lo escribe el ciudadano
+  function prepararSelects() {
+    const f = document.getElementById("filtro-cat");
+    if (f.options.length <= 1) {
+      for (const c of categorias) f.add(new Option(c, c));
+    }
+    const e = document.getElementById("e-categoria");
+    if (!e.options.length) for (const c of categorias) e.add(new Option(c, c));
+  }
+
+  // Todo el contenido se arma con textContent (nunca innerHTML) porque lo escribe el ciudadano
+  function el(tag, props = {}, hijos = []) {
+    const n = document.createElement(tag);
+    Object.assign(n, props);
+    for (const h of hijos) n.appendChild(typeof h === "string" ? document.createTextNode(h) : h);
+    return n;
+  }
+
+  function renderStats() {
+    const cards = document.getElementById("cards");
+    cards.replaceChildren();
+    if (!stats) return;
+    const items = [
+      ["Total", stats.total, "inbox", "#00658e"],
+      ["Hoy", stats.hoy, "today", "#388e3c"],
+      ["Últimos 7 días", stats.semana, "date_range", "#f57c00"],
+      ["Últimos 30 días", stats.mes, "calendar_month", "#8e24aa"],
+    ];
+    for (const [lbl, num, icono, color] of items) {
+      const ico = el("div", { className: "ico" }, [el("span", { className: "material-symbols-outlined", textContent: icono })]);
+      ico.style.background = color;
+      cards.appendChild(el("div", { className: "card" }, [
+        ico,
+        el("div", {}, [el("div", { className: "num", textContent: String(num) }), el("div", { className: "lbl", textContent: lbl })]),
+      ]));
+    }
+
+    // Por categoría (clic = filtrar la tabla)
+    const cat = document.getElementById("chart-cat");
+    cat.replaceChildren();
+    const max = Math.max(1, ...stats.porCategoria.map((c) => c.total));
+    if (!stats.porCategoria.length) cat.appendChild(el("div", { className: "vacio-chart", textContent: "Todavía no hay reclamos." }));
+    for (const c of stats.porCategoria) {
+      const fill = el("div", { className: "fill" });
+      fill.style.width = (c.total / max * 100) + "%";
+      fill.style.background = colorDe(c.categoria);
+      const fila = el("div", { className: "barra", title: "Filtrar por esta categoría" }, [
+        el("span", { className: "nombre", textContent: c.categoria }),
+        el("div", { className: "track" }, [fill]),
+        el("span", { className: "n", textContent: String(c.total) }),
+      ]);
+      fila.onclick = () => { document.getElementById("filtro-cat").value = c.categoria; render(); };
+      cat.appendChild(fila);
+    }
+
+    // Últimos 14 días (rellena los días sin reclamos con 0)
+    const dias = document.getElementById("chart-dias");
+    dias.replaceChildren();
+    const mapa = Object.fromEntries(stats.porDia.map((d) => [d.dia, d.total]));
+    const serie = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const clave = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+      serie.push({ clave, total: mapa[clave] || 0, etiqueta: String(d.getDate()) + "/" + String(d.getMonth() + 1) });
+    }
+    const maxD = Math.max(1, ...serie.map((s) => s.total));
+    const cont = el("div", { className: "dias" });
+    for (const s of serie) {
+      const col = el("div", { className: "col", title: s.etiqueta + ": " + s.total });
+      col.style.height = (s.total / maxD * 120) + "px";
+      cont.appendChild(el("div", { className: "dia" }, [
+        el("span", { className: "v", textContent: s.total ? String(s.total) : "" }), col,
+        el("span", { textContent: s.etiqueta }),
+      ]));
+    }
+    dias.appendChild(cont);
+  }
+
   function celda(tr, texto, clase) {
-    const td = document.createElement("td");
-    td.textContent = texto == null ? "" : String(texto);
-    if (clase) td.className = clase;
-    tr.appendChild(td);
+    tr.appendChild(el("td", { textContent: texto == null ? "" : String(texto), className: clase || "" }));
   }
 
   function render() {
     const q = document.getElementById("buscar").value.trim().toLowerCase();
-    const lista = q
-      ? datos.filter(r => [r.nombre, r.dni, r.domicilio, r.detalle, r.telefono].join(" ").toLowerCase().includes(q))
-      : datos;
+    const cat = document.getElementById("filtro-cat").value;
+    const lista = datos.filter((r) =>
+      (!cat || r.categoria === cat) &&
+      (!q || [r.nombre, r.dni, r.domicilio, r.detalle, r.telefono, r.categoria].join(" ").toLowerCase().includes(q)));
     const tbody = document.getElementById("filas");
     tbody.replaceChildren();
     for (const r of lista) {
       const tr = document.createElement("tr");
       celda(tr, r.id, "nowrap");
       celda(tr, r.fecha, "nowrap");
+      const chip = el("span", { className: "chip", textContent: r.categoria });
+      chip.style.background = colorDe(r.categoria);
+      tr.appendChild(el("td", {}, [chip]));
       celda(tr, r.nombre);
       celda(tr, r.dni, "nowrap");
       celda(tr, r.domicilio);
       celda(tr, r.detalle, "detalle");
       celda(tr, r.telefono, "nowrap");
       celda(tr, r.via_audio ? "Audio" : "Texto", "nowrap");
+
+      const bEd = el("button", { className: "ib", title: "Editar reclamo" }, [el("span", { className: "material-symbols-outlined", textContent: "edit" })]);
+      bEd.onclick = () => abrirEditar(r);
+      const bDel = el("button", { className: "ib del", title: "Eliminar reclamo" }, [el("span", { className: "material-symbols-outlined", textContent: "delete" })]);
+      bDel.onclick = () => abrirEliminar(r);
+      tr.appendChild(el("td", {}, [el("div", { className: "acciones" }, [bEd, bDel])]));
       tbody.appendChild(tr);
     }
     document.getElementById("vacio").style.display = lista.length ? "none" : "block";
     document.getElementById("contador").textContent = `${lista.length} reclamo${lista.length === 1 ? "" : "s"}`;
+  }
+
+  // ── Editar ──
+  function abrirEditar(r) {
+    editandoId = r.id;
+    document.getElementById("dlg-titulo").textContent = "Editar reclamo N° " + r.id;
+    document.getElementById("e-nombre").value = r.nombre;
+    document.getElementById("e-dni").value = r.dni;
+    document.getElementById("e-domicilio").value = r.domicilio;
+    document.getElementById("e-categoria").value = r.categoria;
+    document.getElementById("e-telefono").value = r.telefono || "";
+    document.getElementById("e-detalle").value = r.detalle;
+    document.getElementById("e-err").textContent = "";
+    document.getElementById("dlg-editar").showModal();
+  }
+
+  async function guardarEdicion(ev) {
+    ev.preventDefault();
+    const body = {
+      nombre: document.getElementById("e-nombre").value,
+      dni: document.getElementById("e-dni").value,
+      domicilio: document.getElementById("e-domicilio").value,
+      categoria: document.getElementById("e-categoria").value,
+      telefono: document.getElementById("e-telefono").value,
+      detalle: document.getElementById("e-detalle").value,
+    };
+    try {
+      const r = await fetch("/api/reclamos/" + editandoId, {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      const j = await r.json();
+      if (!r.ok) { document.getElementById("e-err").textContent = j.error || "No se pudo guardar."; return; }
+      document.getElementById("dlg-editar").close();
+      cargar();
+    } catch (e) { document.getElementById("e-err").textContent = "Error de conexión."; }
+  }
+
+  // ── Eliminar ──
+  function abrirEliminar(r) {
+    eliminandoId = r.id;
+    document.getElementById("del-texto").textContent =
+      `¿Seguro que querés eliminar el reclamo N° ${r.id} de ${r.nombre} (${r.categoria})? Esta acción no se puede deshacer.`;
+    document.getElementById("d-err").textContent = "";
+    document.getElementById("dlg-eliminar").showModal();
+  }
+
+  async function confirmarEliminar() {
+    try {
+      const r = await fetch("/api/reclamos/" + eliminandoId, { method: "DELETE" });
+      if (!r.ok) { document.getElementById("d-err").textContent = (await r.json()).error || "No se pudo eliminar."; return; }
+      document.getElementById("dlg-eliminar").close();
+      cargar();
+    } catch (e) { document.getElementById("d-err").textContent = "Error de conexión."; }
   }
 
   cargar();

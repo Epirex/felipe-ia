@@ -53,6 +53,11 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_reclamos_fecha ON reclamos(fecha);
 `);
 
+// Migración: agregar la columna "categoria" a bases que ya tenían la tabla reclamos
+if (!db.prepare("PRAGMA table_info(reclamos)").all().some((c) => c.name === "categoria")) {
+  db.exec("ALTER TABLE reclamos ADD COLUMN categoria TEXT NOT NULL DEFAULT 'Otro'");
+}
+
 // ── Privacidad: hashear el JID del usuario ────────────────────
 // Se guarda solo los primeros 16 caracteres del hash SHA-256.
 // Permite contar usuarios únicos sin guardar números de teléfono.
@@ -245,25 +250,58 @@ function getMensajesPorPeriodo() {
 
 // ── Reclamos ──────────────────────────────────────────────────
 // Se guardan con los datos reales que el ciudadano brinda (nombre, DNI, teléfono).
-function guardarReclamo({ nombre, dni, domicilio, detalle, telefono, viaAudio }) {
+function guardarReclamo({ nombre, dni, domicilio, categoria, detalle, telefono, viaAudio }) {
   db.prepare(`
-    INSERT INTO reclamos (nombre, dni, domicilio, detalle, telefono, via_audio)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(nombre, dni, domicilio, detalle, telefono || null, viaAudio ? 1 : 0);
+    INSERT INTO reclamos (nombre, dni, domicilio, categoria, detalle, telefono, via_audio)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(nombre, dni, domicilio, categoria || "Otro", detalle, telefono || null, viaAudio ? 1 : 0);
 }
 
 function getReclamos(limit = 5000) {
   return db.prepare(`
-    SELECT id, fecha, nombre, dni, domicilio, detalle, telefono, via_audio
+    SELECT id, fecha, nombre, dni, domicilio, categoria, detalle, telefono, via_audio
     FROM reclamos
     ORDER BY id DESC
     LIMIT ?
   `).all(limit);
 }
 
+// Devuelve true si se modificó algún reclamo
+function actualizarReclamo(id, { nombre, dni, domicilio, categoria, detalle, telefono }) {
+  const r = db.prepare(`
+    UPDATE reclamos
+    SET nombre = ?, dni = ?, domicilio = ?, categoria = ?, detalle = ?, telefono = ?
+    WHERE id = ?
+  `).run(nombre, dni, domicilio, categoria, detalle, telefono || null, id);
+  return r.changes > 0;
+}
+
+function eliminarReclamo(id) {
+  return db.prepare("DELETE FROM reclamos WHERE id = ?").run(id).changes > 0;
+}
+
+function getEstadisticasReclamos() {
+  const total = db.prepare("SELECT COUNT(*) AS n FROM reclamos").get().n;
+  const hoy = db.prepare("SELECT COUNT(*) AS n FROM reclamos WHERE date(fecha) = date('now', 'localtime')").get().n;
+  const semana = db.prepare("SELECT COUNT(*) AS n FROM reclamos WHERE fecha >= datetime('now', 'localtime', '-7 days')").get().n;
+  const mes = db.prepare("SELECT COUNT(*) AS n FROM reclamos WHERE fecha >= datetime('now', 'localtime', '-30 days')").get().n;
+  const porCategoria = db.prepare(`
+    SELECT categoria, COUNT(*) AS total FROM reclamos GROUP BY categoria ORDER BY total DESC
+  `).all();
+  const porDia = db.prepare(`
+    SELECT date(fecha) AS dia, COUNT(*) AS total FROM reclamos
+    WHERE fecha >= datetime('now', 'localtime', '-13 days')
+    GROUP BY dia ORDER BY dia
+  `).all();
+  return { total, hoy, semana, mes, porCategoria, porDia };
+}
+
 module.exports = {
   guardarReclamo,
   getReclamos,
+  actualizarReclamo,
+  eliminarReclamo,
+  getEstadisticasReclamos,
   registrarMensaje,
   registrarContacto,
   getContactosConocidos,
