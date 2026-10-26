@@ -7,7 +7,7 @@
 // El estado de la conversación vive en memoria (expira a los 10 min).
 // ============================================================
 
-const { guardarReclamo, getReclamoPorId } = require("./db");
+const { guardarReclamo, getReclamoPorNumero } = require("./db");
 
 const RECLAMO_TTL_MS = 10 * 60 * 1000;
 const conversaciones = new Map(); // jid → { paso, datos, ts }
@@ -108,7 +108,7 @@ const ICONO_ESTADO = { "Pendiente": "🕓", "En curso": "🛠️", "Resuelto": "
 
 function textoEstado(r) {
   let t =
-    `📄 *Reclamo N° ${r.id}*\n` +
+    `📄 *Reclamo N° ${r.numero}*\n` +
     `Categoría: ${r.categoria}\n` +
     `Fecha de carga: ${r.fecha}\n` +
     `Estado: ${ICONO_ESTADO[r.estado] || "ℹ️"} *${r.estado}*`;
@@ -162,7 +162,7 @@ function procesarReclamo(jid, texto, telefono, { viaAudio = false } = {}) {
         return { mensaje: "⛔ Hiciste demasiados intentos fallidos de consulta. Probá de nuevo en unos minutos o llamá al 03834443303.", terminado: true, tipo: "consulta" };
       }
       const dni = valor.replace(/[.\s-]/g, "");
-      const r = /^\d{7,8}$/.test(dni) ? getReclamoPorId(c.datos.numero) : null;
+      const r = /^\d{7,8}$/.test(dni) ? getReclamoPorNumero(c.datos.numero) : null;
       conversaciones.delete(jid);
       // Mismo mensaje si el número no existe o el DNI no coincide (no revelar qué reclamos existen)
       if (!r || String(r.dni) !== dni) {

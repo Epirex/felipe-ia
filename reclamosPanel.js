@@ -229,7 +229,7 @@ function crearRouterReclamos(getAdmin) {
       const wb = new ExcelJS.Workbook();
       const ws = wb.addWorksheet("Reclamos");
       ws.columns = [
-        { header: "N°",                  key: "id",        width: 8 },
+        { header: "N° de reclamo",        key: "numero",    width: 14 },
         { header: "Fecha y hora",        key: "fecha",     width: 20 },
         { header: "Estado",              key: "estado",    width: 13 },
         { header: "Categoría",           key: "categoria", width: 20 },
@@ -248,7 +248,7 @@ function crearRouterReclamos(getAdmin) {
       for (const r of getReclamos(5000, categoriasVisibles(req.sesion))) {
         // Todo se guarda como texto: ExcelJS no interpreta fórmulas en strings (sin riesgo de inyección)
         ws.addRow({
-          id: r.id, fecha: r.fecha, estado: r.estado, categoria: r.categoria, nombre: r.nombre,
+          numero: r.numero, fecha: r.fecha, estado: r.estado, categoria: r.categoria, nombre: r.nombre,
           dni: String(r.dni), domicilio: r.domicilio, detalle: r.detalle, respuesta: r.respuesta || "",
           telefono: r.telefono ? String(r.telefono) : "", via: r.via_audio ? "Audio" : "Texto",
         });

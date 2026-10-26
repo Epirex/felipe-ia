@@ -67,6 +67,30 @@ if (!db.prepare("PRAGMA table_info(reclamos)").all().some((c) => c.name === "cat
   if (!cols.includes("estado_por"))   db.exec("ALTER TABLE reclamos ADD COLUMN estado_por TEXT");
 }
 
+// Migración: número de reclamo público (aleatorio de 4 dígitos, único) para que el ciudadano consulte.
+// El "id" interno sigue siendo correlativo y no se muestra.
+function generarNumeroReclamo() {
+  const existe = db.prepare("SELECT 1 FROM reclamos WHERE numero = ?");
+  for (let i = 0; i < 200; i++) {
+    const n = crypto.randomInt(1000, 10000);
+    if (!existe.get(n)) return n;
+  }
+  // Si los 4 dígitos se agotaron (casi 9000 reclamos), pasar a 5 dígitos
+  for (;;) {
+    const n = crypto.randomInt(10000, 100000);
+    if (!existe.get(n)) return n;
+  }
+}
+{
+  if (!db.prepare("PRAGMA table_info(reclamos)").all().some((c) => c.name === "numero")) {
+    db.exec("ALTER TABLE reclamos ADD COLUMN numero INTEGER");
+  }
+  const sinNumero = db.prepare("SELECT id FROM reclamos WHERE numero IS NULL").all();
+  const asignar = db.prepare("UPDATE reclamos SET numero = ? WHERE id = ?");
+  for (const r of sinNumero) asignar.run(generarNumeroReclamo(), r.id);
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_reclamos_numero ON reclamos(numero)");
+}
+
 // Usuarios del panel de reclamos (direcciones/secretarías). El admin NO está acá: usa ADMIN_USER/ADMIN_PASS.
 db.exec(`
   CREATE TABLE IF NOT EXISTS usuarios_reclamos (
@@ -274,13 +298,14 @@ function getMensajesPorPeriodo() {
 
 // ── Reclamos ──────────────────────────────────────────────────
 // Se guardan con los datos reales que el ciudadano brinda (nombre, DNI, teléfono).
-// Devuelve el número de reclamo (id) asignado.
+// Devuelve el número de reclamo (aleatorio de 4 dígitos) asignado.
 function guardarReclamo({ nombre, dni, domicilio, categoria, detalle, telefono, viaAudio }) {
-  const r = db.prepare(`
-    INSERT INTO reclamos (nombre, dni, domicilio, categoria, detalle, telefono, via_audio)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(nombre, dni, domicilio, categoria || "Otro", detalle, telefono || null, viaAudio ? 1 : 0);
-  return Number(r.lastInsertRowid);
+  const numero = generarNumeroReclamo();
+  db.prepare(`
+    INSERT INTO reclamos (numero, nombre, dni, domicilio, categoria, detalle, telefono, via_audio)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(numero, nombre, dni, domicilio, categoria || "Otro", detalle, telefono || null, viaAudio ? 1 : 0);
+  return numero;
 }
 
 // `categorias`: null = todas; array = solo esas (array vacío = ninguna).
@@ -293,7 +318,7 @@ function filtroCategorias(categorias, prefijo = "WHERE") {
 function getReclamos(limit = 5000, categorias = null) {
   const f = filtroCategorias(categorias);
   return db.prepare(`
-    SELECT id, fecha, nombre, dni, domicilio, categoria, detalle, telefono, via_audio,
+    SELECT id, numero, fecha, nombre, dni, domicilio, categoria, detalle, telefono, via_audio,
            estado, respuesta, estado_fecha, estado_por
     FROM reclamos
     ${f.sql}
@@ -302,9 +327,18 @@ function getReclamos(limit = 5000, categorias = null) {
   `).all(...f.params, limit);
 }
 
+// Búsqueda por el número público que conoce el ciudadano
+function getReclamoPorNumero(numero) {
+  return db.prepare(`
+    SELECT id, numero, fecha, nombre, dni, domicilio, categoria, detalle, telefono, via_audio,
+           estado, respuesta, estado_fecha, estado_por
+    FROM reclamos WHERE numero = ?
+  `).get(numero) || null;
+}
+
 function getReclamoPorId(id) {
   return db.prepare(`
-    SELECT id, fecha, nombre, dni, domicilio, categoria, detalle, telefono, via_audio,
+    SELECT id, numero, fecha, nombre, dni, domicilio, categoria, detalle, telefono, via_audio,
            estado, respuesta, estado_fecha, estado_por
     FROM reclamos WHERE id = ?
   `).get(id) || null;
@@ -418,6 +452,7 @@ function verificarUsuarioReclamos(usuario, password) {
 module.exports = {
   ESTADOS,
   getReclamoPorId,
+  getReclamoPorNumero,
   cambiarEstadoReclamo,
   crearUsuarioReclamos,
   listarUsuariosReclamos,

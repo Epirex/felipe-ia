@@ -416,12 +416,12 @@
     const est = $("filtro-estado").value;
     const lista = datos.filter((r) =>
       (!cat || r.categoria === cat) && (!est || r.estado === est) &&
-      (!q || [r.nombre, r.dni, r.domicilio, r.detalle, r.telefono, r.categoria, r.estado].join(" ").toLowerCase().includes(q)));
+      (!q || [r.numero, r.nombre, r.dni, r.domicilio, r.detalle, r.telefono, r.categoria, r.estado].join(" ").toLowerCase().includes(q)));
     const tbody = $("filas");
     tbody.replaceChildren();
     for (const r of lista) {
       const tr = document.createElement("tr");
-      celda(tr, r.id, "nowrap");
+      celda(tr, r.numero, "nowrap");
       celda(tr, r.fecha, "nowrap");
 
       const chipE = el("span", { className: "chip", textContent: r.estado });
@@ -474,7 +474,7 @@
   // ── Cambiar estado ──
   function abrirEstado(r) {
     estadoId = r.id;
-    $("s-titulo").textContent = "Estado del reclamo N° " + r.id;
+    $("s-titulo").textContent = "Estado del reclamo N° " + r.numero;
     $("s-estado").value = r.estado;
     $("s-respuesta").value = r.respuesta || "";
     $("s-ultimo").textContent = r.estado_fecha ? `Último cambio: ${r.estado_fecha}${r.estado_por ? " — " + r.estado_por : ""}` : "";
@@ -493,7 +493,7 @@
   // ── Editar (admin) ──
   function abrirEditar(r) {
     editandoId = r.id;
-    $("dlg-titulo").textContent = "Editar reclamo N° " + r.id;
+    $("dlg-titulo").textContent = "Editar reclamo N° " + r.numero;
     $("e-nombre").value = r.nombre; $("e-dni").value = r.dni; $("e-domicilio").value = r.domicilio;
     $("e-categoria").value = r.categoria; $("e-telefono").value = r.telefono || ""; $("e-detalle").value = r.detalle;
     $("e-err").textContent = "";
@@ -514,7 +514,7 @@
   // ── Eliminar (admin) ──
   function abrirEliminar(r) {
     eliminandoId = r.id;
-    $("del-texto").textContent = `¿Seguro que querés eliminar el reclamo N° ${r.id} de ${r.nombre} (${r.categoria})? Esta acción no se puede deshacer.`;
+    $("del-texto").textContent = `¿Seguro que querés eliminar el reclamo N° ${r.numero} de ${r.nombre} (${r.categoria})? Esta acción no se puede deshacer.`;
     $("d-err").textContent = "";
     $("dlg-eliminar").showModal();
   }
