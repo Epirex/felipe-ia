@@ -58,6 +58,30 @@ if (!db.prepare("PRAGMA table_info(reclamos)").all().some((c) => c.name === "cat
   db.exec("ALTER TABLE reclamos ADD COLUMN categoria TEXT NOT NULL DEFAULT 'Otro'");
 }
 
+// Migración: estado de seguimiento del reclamo (los ya cargados quedan "Pendiente")
+{
+  const cols = db.prepare("PRAGMA table_info(reclamos)").all().map((c) => c.name);
+  if (!cols.includes("estado"))       db.exec("ALTER TABLE reclamos ADD COLUMN estado TEXT NOT NULL DEFAULT 'Pendiente'");
+  if (!cols.includes("respuesta"))    db.exec("ALTER TABLE reclamos ADD COLUMN respuesta TEXT");
+  if (!cols.includes("estado_fecha")) db.exec("ALTER TABLE reclamos ADD COLUMN estado_fecha TEXT");
+  if (!cols.includes("estado_por"))   db.exec("ALTER TABLE reclamos ADD COLUMN estado_por TEXT");
+}
+
+// Usuarios del panel de reclamos (direcciones/secretarías). El admin NO está acá: usa ADMIN_USER/ADMIN_PASS.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS usuarios_reclamos (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario     TEXT    NOT NULL UNIQUE,
+    nombre      TEXT    NOT NULL,
+    pass_hash   TEXT    NOT NULL,
+    pass_salt   TEXT    NOT NULL,
+    categorias  TEXT    NOT NULL DEFAULT '[]',
+    creado      TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
+  );
+`);
+
+const ESTADOS = ["Pendiente", "En curso", "Resuelto", "Rechazado"];
+
 // ── Privacidad: hashear el JID del usuario ────────────────────
 // Se guarda solo los primeros 16 caracteres del hash SHA-256.
 // Permite contar usuarios únicos sin guardar números de teléfono.
@@ -250,20 +274,40 @@ function getMensajesPorPeriodo() {
 
 // ── Reclamos ──────────────────────────────────────────────────
 // Se guardan con los datos reales que el ciudadano brinda (nombre, DNI, teléfono).
+// Devuelve el número de reclamo (id) asignado.
 function guardarReclamo({ nombre, dni, domicilio, categoria, detalle, telefono, viaAudio }) {
-  db.prepare(`
+  const r = db.prepare(`
     INSERT INTO reclamos (nombre, dni, domicilio, categoria, detalle, telefono, via_audio)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(nombre, dni, domicilio, categoria || "Otro", detalle, telefono || null, viaAudio ? 1 : 0);
+  return Number(r.lastInsertRowid);
 }
 
-function getReclamos(limit = 5000) {
+// `categorias`: null = todas; array = solo esas (array vacío = ninguna).
+function filtroCategorias(categorias, prefijo = "WHERE") {
+  if (!Array.isArray(categorias)) return { sql: "", params: [] };
+  if (!categorias.length) return { sql: `${prefijo} 0`, params: [] };
+  return { sql: `${prefijo} categoria IN (${categorias.map(() => "?").join(",")})`, params: categorias };
+}
+
+function getReclamos(limit = 5000, categorias = null) {
+  const f = filtroCategorias(categorias);
   return db.prepare(`
-    SELECT id, fecha, nombre, dni, domicilio, categoria, detalle, telefono, via_audio
+    SELECT id, fecha, nombre, dni, domicilio, categoria, detalle, telefono, via_audio,
+           estado, respuesta, estado_fecha, estado_por
     FROM reclamos
+    ${f.sql}
     ORDER BY id DESC
     LIMIT ?
-  `).all(limit);
+  `).all(...f.params, limit);
+}
+
+function getReclamoPorId(id) {
+  return db.prepare(`
+    SELECT id, fecha, nombre, dni, domicilio, categoria, detalle, telefono, via_audio,
+           estado, respuesta, estado_fecha, estado_por
+    FROM reclamos WHERE id = ?
+  `).get(id) || null;
 }
 
 // Devuelve true si se modificó algún reclamo
@@ -276,27 +320,111 @@ function actualizarReclamo(id, { nombre, dni, domicilio, categoria, detalle, tel
   return r.changes > 0;
 }
 
+// Cambia estado y comentario (lo que ve el ciudadano). `por` = quién lo hizo.
+function cambiarEstadoReclamo(id, { estado, respuesta, por }) {
+  const r = db.prepare(`
+    UPDATE reclamos
+    SET estado = ?, respuesta = ?, estado_fecha = datetime('now', 'localtime'), estado_por = ?
+    WHERE id = ?
+  `).run(estado, respuesta || null, por || null, id);
+  return r.changes > 0;
+}
+
 function eliminarReclamo(id) {
   return db.prepare("DELETE FROM reclamos WHERE id = ?").run(id).changes > 0;
 }
 
-function getEstadisticasReclamos() {
-  const total = db.prepare("SELECT COUNT(*) AS n FROM reclamos").get().n;
-  const hoy = db.prepare("SELECT COUNT(*) AS n FROM reclamos WHERE date(fecha) = date('now', 'localtime')").get().n;
-  const semana = db.prepare("SELECT COUNT(*) AS n FROM reclamos WHERE fecha >= datetime('now', 'localtime', '-7 days')").get().n;
-  const mes = db.prepare("SELECT COUNT(*) AS n FROM reclamos WHERE fecha >= datetime('now', 'localtime', '-30 days')").get().n;
+function getEstadisticasReclamos(categorias = null) {
+  const fw = filtroCategorias(categorias, "WHERE");
+  const fa = filtroCategorias(categorias, "AND");
+  const cuenta = (extra) => {
+    // Une la condición de categorías con la condición propia de cada métrica
+    const where = extra
+      ? `WHERE ${extra} ${fa.sql}`
+      : fw.sql;
+    return db.prepare(`SELECT COUNT(*) AS n FROM reclamos ${where}`).get(...fw.params).n;
+  };
+  const total  = cuenta("");
+  const hoy    = cuenta("date(fecha) = date('now', 'localtime')");
+  const semana = cuenta("fecha >= datetime('now', 'localtime', '-7 days')");
+  const mes    = cuenta("fecha >= datetime('now', 'localtime', '-30 days')");
   const porCategoria = db.prepare(`
-    SELECT categoria, COUNT(*) AS total FROM reclamos GROUP BY categoria ORDER BY total DESC
-  `).all();
+    SELECT categoria, COUNT(*) AS total FROM reclamos ${fw.sql} GROUP BY categoria ORDER BY total DESC
+  `).all(...fw.params);
+  const porEstado = db.prepare(`
+    SELECT estado, COUNT(*) AS total FROM reclamos ${fw.sql} GROUP BY estado
+  `).all(...fw.params);
   const porDia = db.prepare(`
     SELECT date(fecha) AS dia, COUNT(*) AS total FROM reclamos
-    WHERE fecha >= datetime('now', 'localtime', '-13 days')
+    WHERE fecha >= datetime('now', 'localtime', '-13 days') ${fa.sql}
     GROUP BY dia ORDER BY dia
-  `).all();
-  return { total, hoy, semana, mes, porCategoria, porDia };
+  `).all(...fa.params);
+  return { total, hoy, semana, mes, porCategoria, porEstado, porDia };
+}
+
+// ── Usuarios del panel de reclamos ────────────────────────────
+function hashPassword(password, salt) {
+  return crypto.scryptSync(password, salt, 64).toString("hex");
+}
+
+function limpiarUsuario(u) {
+  if (!u) return null;
+  return { id: u.id, usuario: u.usuario, nombre: u.nombre, categorias: JSON.parse(u.categorias || "[]"), creado: u.creado };
+}
+
+function crearUsuarioReclamos({ usuario, nombre, password, categorias }) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  db.prepare(`
+    INSERT INTO usuarios_reclamos (usuario, nombre, pass_hash, pass_salt, categorias)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(usuario, nombre, hashPassword(password, salt), salt, JSON.stringify(categorias || []));
+}
+
+function listarUsuariosReclamos() {
+  return db.prepare("SELECT * FROM usuarios_reclamos ORDER BY nombre COLLATE NOCASE").all().map(limpiarUsuario);
+}
+
+function getUsuarioReclamos(usuario) {
+  return limpiarUsuario(db.prepare("SELECT * FROM usuarios_reclamos WHERE usuario = ?").get(usuario));
+}
+
+// `password` es opcional: si viene, se resetea la contraseña.
+function actualizarUsuarioReclamos(id, { nombre, categorias, password }) {
+  let ok = db.prepare("UPDATE usuarios_reclamos SET nombre = ?, categorias = ? WHERE id = ?")
+    .run(nombre, JSON.stringify(categorias || []), id).changes > 0;
+  if (ok && password) {
+    const salt = crypto.randomBytes(16).toString("hex");
+    db.prepare("UPDATE usuarios_reclamos SET pass_hash = ?, pass_salt = ? WHERE id = ?")
+      .run(hashPassword(password, salt), salt, id);
+  }
+  return ok;
+}
+
+function eliminarUsuarioReclamos(id) {
+  return db.prepare("DELETE FROM usuarios_reclamos WHERE id = ?").run(id).changes > 0;
+}
+
+// Devuelve el usuario si las credenciales son correctas, o null.
+function verificarUsuarioReclamos(usuario, password) {
+  const u = db.prepare("SELECT * FROM usuarios_reclamos WHERE usuario = ?").get(usuario);
+  // Hash también cuando el usuario no existe, para no revelar su existencia por tiempo de respuesta
+  const salt = u ? u.pass_salt : "0".repeat(32);
+  const calculado = Buffer.from(hashPassword(password, salt), "hex");
+  const real = Buffer.from(u ? u.pass_hash : "0".repeat(128), "hex");
+  const ok = crypto.timingSafeEqual(calculado, real) && Boolean(u);
+  return ok ? limpiarUsuario(u) : null;
 }
 
 module.exports = {
+  ESTADOS,
+  getReclamoPorId,
+  cambiarEstadoReclamo,
+  crearUsuarioReclamos,
+  listarUsuariosReclamos,
+  getUsuarioReclamos,
+  actualizarUsuarioReclamos,
+  eliminarUsuarioReclamos,
+  verificarUsuarioReclamos,
   guardarReclamo,
   getReclamos,
   actualizarReclamo,

@@ -18,8 +18,7 @@ const {
   getDistribucionTipos,
   getMensajesPorPeriodo,
 } = require("./db");
-const { getReclamos, actualizarReclamo, eliminarReclamo, getEstadisticasReclamos } = require("./db");
-const { CATEGORIAS } = require("./reclamos");
+const { crearRouterReclamos } = require("./reclamosPanel");
 const botState = require("./state");
 
 // ── Configuración ─────────────────────────────────────────────
@@ -115,6 +114,10 @@ function basicAuth(req, res, next) {
 
 // ── Archivos estáticos (audio, imágenes, etc.) públicos ───────
 app.use("/audio", express.static(path.join(__dirname, "public", "audio")));
+
+// ── Reclamos: login propio por usuario/dirección (NO usa Basic Auth) ──
+// Va antes de basicAuth a propósito; internamente exige sesión y filtra por categoría.
+app.use(crearRouterReclamos(() => ({ user: ADMIN_USER, pass: ADMIN_PASS })));
 
 app.use(basicAuth);
 app.use(express.json());
@@ -269,101 +272,6 @@ app.get("/api/export/csv", (req, res) => {
     res.send("\uFEFF" + encabezado + cuerpo);
   } catch (err) {
     res.status(500).send("Error al generar CSV: " + err.message);
-  }
-});
-
-// ── Reclamos: página, API y exportación a Excel ───────────────
-app.get("/reclamos", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "reclamos.html"));
-});
-
-app.get("/api/reclamos", (req, res) => {
-  try {
-    res.json({
-      reclamos: getReclamos(5000),
-      stats: getEstadisticasReclamos(),
-      categorias: CATEGORIAS,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Editar un reclamo (valida y limita los campos)
-app.put("/api/reclamos/:id", (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    const b = req.body || {};
-    const limpiar = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
-    const datos = {
-      nombre:    limpiar(b.nombre, 100),
-      dni:       limpiar(b.dni, 20),
-      domicilio: limpiar(b.domicilio, 200),
-      categoria: limpiar(b.categoria, 50),
-      detalle:   limpiar(b.detalle, 2000),
-      telefono:  limpiar(b.telefono, 30),
-    };
-    if (!Number.isInteger(id) || !datos.nombre || !datos.dni || !datos.domicilio || !datos.detalle) {
-      return res.status(400).json({ error: "Nombre, DNI, domicilio y detalle son obligatorios." });
-    }
-    if (!CATEGORIAS.includes(datos.categoria)) {
-      return res.status(400).json({ error: "Categoría inválida." });
-    }
-    if (!actualizarReclamo(id, datos)) return res.status(404).json({ error: "Reclamo no encontrado." });
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/api/reclamos/:id", (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) return res.status(400).json({ error: "ID inválido." });
-    if (!eliminarReclamo(id)) return res.status(404).json({ error: "Reclamo no encontrado." });
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get("/api/export/reclamos.xlsx", async (req, res) => {
-  try {
-    const ExcelJS = require("exceljs");
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet("Reclamos");
-    ws.columns = [
-      { header: "N°",                 key: "id",        width: 8 },
-      { header: "Fecha y hora",       key: "fecha",     width: 20 },
-      { header: "Nombre completo",    key: "nombre",    width: 30 },
-      { header: "DNI",                key: "dni",       width: 14 },
-      { header: "Domicilio / lugar",  key: "domicilio", width: 35 },
-      { header: "Categoría",          key: "categoria", width: 20 },
-      { header: "Detalle del reclamo",key: "detalle",   width: 70 },
-      { header: "Teléfono",           key: "telefono",  width: 18 },
-      { header: "Vía",                key: "via",       width: 10 },
-    ];
-    ws.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
-    ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF00658E" } };
-    ws.views = [{ state: "frozen", ySplit: 1 }];
-
-    for (const r of getReclamos(5000)) {
-      // Todo se guarda como texto: ExcelJS no interpreta fórmulas en strings (sin riesgo de inyección)
-      ws.addRow({
-        id: r.id, fecha: r.fecha, nombre: r.nombre, dni: String(r.dni),
-        domicilio: r.domicilio, categoria: r.categoria, detalle: r.detalle, telefono: r.telefono ? String(r.telefono) : "",
-        via: r.via_audio ? "Audio" : "Texto",
-      });
-    }
-    ws.eachRow((row) => { row.alignment = { vertical: "top", wrapText: true }; });
-
-    const fechaHoy = new Date().toISOString().slice(0, 10);
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="reclamos-${fechaHoy}.xlsx"`);
-    await wb.xlsx.write(res);
-    res.end();
-  } catch (err) {
-    res.status(500).send("Error al generar Excel: " + err.message);
   }
 });
 

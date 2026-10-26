@@ -758,15 +758,15 @@ async function iniciarBot(intentosReconexion = 0) {
         }
 
         const telefono = (msg.key.senderPn || remitente).split("@")[0];
-        const { mensaje, terminado } = reclamos.procesarReclamo(remitente, texto, telefono, { viaAudio: esAudio });
-        registrarMensaje({
-          jid: remitente,
-          pregunta: terminado ? "[Reclamo registrado]" : "[Reclamo en curso]",
-          faqDisparada: terminado ? "reclamo_registrado" : "reclamo_paso",
-          respondido: true,
-        });
+        const { mensaje, terminado, tipo } = reclamos.procesarReclamo(remitente, texto, telefono, { viaAudio: esAudio });
+        const marca = tipo === "alta"
+          ? ["[Reclamo registrado]", "reclamo_registrado"]
+          : tipo === "consulta"
+            ? ["[Consulta de reclamo]", "reclamo_consulta"]
+            : ["[Reclamo en curso]", "reclamo_paso"];
+        registrarMensaje({ jid: remitente, pregunta: marca[0], faqDisparada: marca[1], respondido: true });
         await sock.sendMessage(remitente, { text: mensaje });
-        if (terminado) logger.info(`📢 Reclamo nuevo registrado desde ${remitente}.`);
+        if (terminado && tipo === "alta") logger.info(`📢 Reclamo nuevo registrado desde ${remitente}.`);
       } catch (err) {
         logger.error(`Error en reclamo de ${remitente}:`, err.message);
       }

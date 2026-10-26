@@ -16,20 +16,30 @@
             --line: #42474e; --head: #232728; --danger: #ffb4ab; --track: #2a2e2f; }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; font-family: 'Roboto', sans-serif; background: var(--bg); color: var(--text); }
   header { background: #00658e; color: #fff; padding: 14px 24px; display: flex; align-items: center;
            justify-content: space-between; flex-wrap: wrap; gap: 12px; }
   header h1 { margin: 0; font-size: 20px; }
+  header .sub { font-size: 13px; opacity: .85; }
   .btn { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,.14); color: #fff;
          border: 1px solid rgba(255,255,255,.25); padding: 8px 14px; border-radius: 999px; text-decoration: none;
          font-size: 14px; cursor: pointer; font-family: inherit; }
   .btn:hover { background: rgba(255,255,255,.26); }
   main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
 
+  /* Login */
+  #login { min-height: calc(100vh - 70px); display: grid; place-items: center; padding: 20px; }
+  .login-card { background: var(--surface); border-radius: 18px; padding: 28px; width: min(400px, 94vw);
+                box-shadow: 0 4px 20px rgba(0,0,0,.15); display: flex; flex-direction: column; gap: 14px; }
+  .login-card h2 { margin: 0; }
+  .login-card p { margin: 0; color: var(--muted); font-size: 14px; }
+
   /* Tarjetas de resumen */
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 18px; }
   .card { background: var(--surface); border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.1);
-          display: flex; align-items: center; gap: 14px; }
+          display: flex; align-items: center; gap: 14px; cursor: default; }
+  .card.click { cursor: pointer; }
   .card .ico { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: #fff; }
   .card .num { font-size: 28px; font-weight: 700; line-height: 1; }
   .card .lbl { color: var(--muted); font-size: 13px; margin-top: 4px; }
@@ -52,10 +62,11 @@
 
   /* Tabla */
   .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
-  .toolbar input, .toolbar select, dialog input, dialog select, dialog textarea {
+  .toolbar input, .toolbar select, input.f, select.f, textarea.f {
     padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface);
-    color: var(--text); font-size: 14px; font-family: inherit; }
-  .toolbar input { flex: 1; min-width: 220px; border-radius: 999px; }
+    color: var(--text); font-size: 14px; font-family: inherit; width: 100%; }
+  .toolbar input { flex: 1; min-width: 220px; border-radius: 999px; width: auto; }
+  .toolbar select { width: auto; }
   .count { color: var(--muted); font-size: 14px; }
   .wrap { background: var(--surface); border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.1); overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -64,6 +75,7 @@
   td.detalle { min-width: 320px; white-space: pre-wrap; word-break: break-word; }
   td.nowrap { white-space: nowrap; }
   .chip { display: inline-block; border-radius: 999px; padding: 3px 10px; font-size: 12px; color: #fff; white-space: nowrap; }
+  .resp { font-size: 12px; color: var(--muted); margin-top: 6px; max-width: 220px; white-space: pre-wrap; word-break: break-word; }
   .acciones { display: flex; gap: 6px; }
   .ib { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 10px;
         width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer; }
@@ -71,32 +83,59 @@
   .ib.del { color: var(--danger); }
   .vacio { padding: 40px; text-align: center; color: var(--muted); }
 
-  /* Diálogo de edición */
-  dialog { border: none; border-radius: 18px; padding: 0; width: min(560px, 94vw); background: var(--surface); color: var(--text);
-           box-shadow: 0 10px 40px rgba(0,0,0,.35); }
+  /* Diálogos */
+  dialog { border: none; border-radius: 18px; padding: 0; width: min(580px, 94vw); background: var(--surface); color: var(--text);
+           box-shadow: 0 10px 40px rgba(0,0,0,.35); max-height: 92vh; }
   dialog::backdrop { background: rgba(0,0,0,.5); }
   .dlg { padding: 22px; display: flex; flex-direction: column; gap: 12px; }
   .dlg h3 { margin: 0 0 4px; }
   .dlg label { font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
-  .dlg textarea { min-height: 120px; resize: vertical; }
+  textarea.f { min-height: 110px; resize: vertical; }
   .dlg .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .dlg .pie { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
   .b2 { padding: 10px 18px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; font-size: 14px; font-family: inherit; }
   .b1 { padding: 10px 18px; border-radius: 999px; border: none; background: var(--primary); color: #fff; cursor: pointer; font-size: 14px; font-family: inherit; }
   .b1.red { background: var(--danger); color: #fff; }
   .err { color: var(--danger); font-size: 13px; min-height: 16px; }
+  .info { color: var(--muted); font-size: 12px; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+  .checks label { flex-direction: row; align-items: center; gap: 8px; font-size: 14px; color: var(--text); }
+  .usuarios-lista { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
+  .usr { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--line);
+         border-radius: 12px; padding: 8px 12px; }
+  .usr .t { font-size: 14px; }
+  .usr .c { font-size: 12px; color: var(--muted); }
+  hr { border: none; border-top: 1px solid var(--line); width: 100%; margin: 4px 0; }
 </style>
 </head>
 <body>
 <header>
-  <h1>📢 Reclamos — Felipe IA</h1>
-  <div style="display:flex;gap:10px;flex-wrap:wrap">
-    <a class="btn" href="/"><span class="material-symbols-outlined">arrow_back</span> Volver al panel</a>
+  <div>
+    <h1>📢 Reclamos — Felipe IA</h1>
+    <div class="sub" id="quien" hidden></div>
+  </div>
+  <div id="acciones-header" style="display:flex;gap:10px;flex-wrap:wrap" hidden>
+    <a class="btn" id="btn-panel" href="/" hidden><span class="material-symbols-outlined">arrow_back</span> Panel principal</a>
+    <button class="btn" id="btn-usuarios" onclick="abrirUsuarios()" hidden><span class="material-symbols-outlined">group</span> Usuarios</button>
     <button class="btn" onclick="cargar()"><span class="material-symbols-outlined">refresh</span> Actualizar</button>
     <a class="btn" href="/api/export/reclamos.xlsx"><span class="material-symbols-outlined">download</span> Descargar Excel</a>
+    <button class="btn" onclick="cerrarSesion()"><span class="material-symbols-outlined">logout</span> Salir</button>
   </div>
 </header>
-<main>
+
+<!-- Login -->
+<section id="login" hidden>
+  <form class="login-card" onsubmit="iniciarSesion(event)">
+    <h2>Ingresar</h2>
+    <p>Acceso al seguimiento de reclamos. Cada área ve solo los reclamos que le corresponden.</p>
+    <input class="f" id="l-usuario" placeholder="Usuario" autocomplete="username" required>
+    <input class="f" id="l-pass" type="password" placeholder="Contraseña" autocomplete="current-password" required>
+    <div class="err" id="l-err"></div>
+    <button class="b1" type="submit">Ingresar</button>
+  </form>
+</section>
+
+<main id="app" hidden>
   <section class="cards" id="cards"></section>
 
   <section class="charts">
@@ -112,34 +151,53 @@
 
   <div class="toolbar">
     <input id="buscar" type="search" placeholder="Buscar por nombre, DNI, domicilio o detalle..." oninput="render()">
+    <select id="filtro-estado" onchange="render()"><option value="">Todos los estados</option></select>
     <select id="filtro-cat" onchange="render()"><option value="">Todas las categorías</option></select>
     <span class="count" id="contador"></span>
   </div>
   <div class="wrap">
     <table>
       <thead>
-        <tr><th>N°</th><th>Fecha</th><th>Categoría</th><th>Nombre</th><th>DNI</th><th>Domicilio / lugar</th><th>Detalle</th><th>Teléfono</th><th>Vía</th><th>Acciones</th></tr>
+        <tr><th>N°</th><th>Fecha</th><th>Estado</th><th>Categoría</th><th>Nombre</th><th>DNI</th><th>Domicilio / lugar</th><th>Detalle</th><th>Teléfono</th><th>Vía</th><th>Acciones</th></tr>
       </thead>
       <tbody id="filas"></tbody>
     </table>
-    <div class="vacio" id="vacio" style="display:none">No hay reclamos para mostrar.</div>
+    <div class="vacio" id="vacio" hidden>No hay reclamos para mostrar.</div>
   </div>
 </main>
 
-<!-- Editar -->
+<!-- Cambiar estado (todos los usuarios) -->
+<dialog id="dlg-estado">
+  <form class="dlg" onsubmit="guardarEstado(event)">
+    <h3 id="s-titulo">Cambiar estado</h3>
+    <label>Estado <select class="f" id="s-estado"></select></label>
+    <label>Comentario para el ciudadano (opcional)
+      <textarea class="f" id="s-respuesta" maxlength="500" placeholder="Ej: La cuadrilla pasa el jueves por la zona."></textarea>
+    </label>
+    <div class="info">El ciudadano verá el estado y este comentario cuando consulte su reclamo por WhatsApp.</div>
+    <div class="info" id="s-ultimo"></div>
+    <div class="err" id="s-err"></div>
+    <div class="pie">
+      <button type="button" class="b2" onclick="document.getElementById('dlg-estado').close()">Cancelar</button>
+      <button type="submit" class="b1">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Editar (solo admin) -->
 <dialog id="dlg-editar">
   <form class="dlg" onsubmit="guardarEdicion(event)">
     <h3 id="dlg-titulo">Editar reclamo</h3>
     <div class="fila">
-      <label>Nombre completo <input id="e-nombre" maxlength="100" required></label>
-      <label>DNI <input id="e-dni" maxlength="20" required></label>
+      <label>Nombre completo <input class="f" id="e-nombre" maxlength="100" required></label>
+      <label>DNI <input class="f" id="e-dni" maxlength="20" required></label>
     </div>
     <div class="fila">
-      <label>Domicilio / lugar <input id="e-domicilio" maxlength="200" required></label>
-      <label>Categoría <select id="e-categoria"></select></label>
+      <label>Domicilio / lugar <input class="f" id="e-domicilio" maxlength="200" required></label>
+      <label>Categoría <select class="f" id="e-categoria"></select></label>
     </div>
-    <label>Teléfono <input id="e-telefono" maxlength="30"></label>
-    <label>Detalle del reclamo <textarea id="e-detalle" maxlength="2000" required></textarea></label>
+    <label>Teléfono <input class="f" id="e-telefono" maxlength="30"></label>
+    <label>Detalle del reclamo <textarea class="f" id="e-detalle" maxlength="2000" required></textarea></label>
     <div class="err" id="e-err"></div>
     <div class="pie">
       <button type="button" class="b2" onclick="document.getElementById('dlg-editar').close()">Cancelar</button>
@@ -148,7 +206,7 @@
   </form>
 </dialog>
 
-<!-- Eliminar -->
+<!-- Eliminar (solo admin) -->
 <dialog id="dlg-eliminar">
   <div class="dlg">
     <h3>Eliminar reclamo</h3>
@@ -161,35 +219,49 @@
   </div>
 </dialog>
 
+<!-- Usuarios (solo admin) -->
+<dialog id="dlg-usuarios">
+  <div class="dlg">
+    <h3>Usuarios por dirección / área</h3>
+    <div class="info">Cada usuario ve solo las categorías asignadas y únicamente puede cambiar el estado de los reclamos.</div>
+    <div class="usuarios-lista" id="u-lista"></div>
+    <hr>
+    <form onsubmit="guardarUsuario(event)" style="display:flex;flex-direction:column;gap:12px">
+      <strong id="u-form-titulo">Nuevo usuario</strong>
+      <div class="fila" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)">Usuario
+          <input class="f" id="u-usuario" maxlength="30" placeholder="ej: medioambiente" autocomplete="off" required></label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)">Contraseña
+          <input class="f" id="u-pass" type="password" maxlength="100" placeholder="mínimo 8 caracteres" autocomplete="new-password"></label>
+      </div>
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)">Nombre del área
+        <input class="f" id="u-nombre" maxlength="80" placeholder="ej: Dirección de Medio Ambiente" required></label>
+      <div style="font-size:13px;color:var(--muted)">Categorías que puede ver</div>
+      <div class="checks" id="u-cats"></div>
+      <div class="err" id="u-err"></div>
+      <div class="pie" style="display:flex;justify-content:flex-end;gap:10px">
+        <button type="button" class="b2" id="u-cancelar-edicion" onclick="nuevoUsuario()" hidden>Cancelar edición</button>
+        <button type="button" class="b2" onclick="document.getElementById('dlg-usuarios').close()">Cerrar</button>
+        <button type="submit" class="b1" id="u-guardar">Crear usuario</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
 <script>
   const COLORES = {
     "Cloacas": "#6d4c41", "Bacheo": "#f57c00", "Tránsito": "#d32f2f", "Salud": "#388e3c",
     "Recolección": "#0097a7", "Desmalezamiento": "#7cb342", "Desarrollo social": "#8e24aa",
     "Obra pública": "#3949ab", "Alumbrado público": "#fbc02d", "Otro": "#78909c",
   };
+  const COLORES_ESTADO = { "Pendiente": "#f57c00", "En curso": "#0288d1", "Resuelto": "#388e3c", "Rechazado": "#757575" };
   const colorDe = (c) => COLORES[c] || "#78909c";
+  const colorEstado = (e) => COLORES_ESTADO[e] || "#757575";
+  const $ = (id) => document.getElementById(id);
 
-  let datos = [], stats = null, categorias = [], editandoId = null, eliminandoId = null;
-
-  async function cargar() {
-    try {
-      const r = await fetch("/api/reclamos");
-      const j = await r.json();
-      datos = j.reclamos || []; stats = j.stats; categorias = j.categorias || [];
-    } catch (e) { datos = []; stats = null; }
-    prepararSelects();
-    renderStats();
-    render();
-  }
-
-  function prepararSelects() {
-    const f = document.getElementById("filtro-cat");
-    if (f.options.length <= 1) {
-      for (const c of categorias) f.add(new Option(c, c));
-    }
-    const e = document.getElementById("e-categoria");
-    if (!e.options.length) for (const c of categorias) e.add(new Option(c, c));
-  }
+  let sesion = null, datos = [], stats = null, categorias = [], estados = [];
+  let editandoId = null, eliminandoId = null, estadoId = null, usuarios = [], editandoUsuarioId = null;
+  const esAdmin = () => sesion && sesion.rol === "admin";
 
   // Todo el contenido se arma con textContent (nunca innerHTML) porque lo escribe el ciudadano
   function el(tag, props = {}, hijos = []) {
@@ -199,27 +271,102 @@
     return n;
   }
 
+  // ── Sesión ──
+  async function iniciar() {
+    try {
+      const r = await fetch("/api/reclamos/sesion");
+      if (r.ok) { sesion = await r.json(); return mostrarApp(); }
+    } catch (e) {}
+    mostrarLogin();
+  }
+
+  function mostrarLogin() {
+    sesion = null;
+    $("login").hidden = false; $("app").hidden = true; $("acciones-header").hidden = true; $("quien").hidden = true;
+    $("l-pass").value = "";
+  }
+
+  function mostrarApp() {
+    $("login").hidden = true; $("app").hidden = false; $("acciones-header").hidden = false;
+    $("quien").hidden = false;
+    $("quien").textContent = esAdmin() ? "Administrador — acceso total" : sesion.nombre + " — " + sesion.categorias.join(", ");
+    $("btn-usuarios").hidden = !esAdmin();
+    $("btn-panel").hidden = !esAdmin();
+    cargar();
+  }
+
+  async function iniciarSesion(ev) {
+    ev.preventDefault();
+    $("l-err").textContent = "";
+    try {
+      const r = await fetch("/api/reclamos/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuario: $("l-usuario").value, password: $("l-pass").value }),
+      });
+      const j = await r.json();
+      if (!r.ok) { $("l-err").textContent = j.error || "No se pudo ingresar."; return; }
+      iniciar();
+    } catch (e) { $("l-err").textContent = "Error de conexión."; }
+  }
+
+  async function cerrarSesion() {
+    await fetch("/api/reclamos/logout", { method: "POST" });
+    datos = []; mostrarLogin();
+  }
+
+  // ── Datos ──
+  async function cargar() {
+    try {
+      const r = await fetch("/api/reclamos");
+      if (r.status === 401) return mostrarLogin();
+      const j = await r.json();
+      datos = j.reclamos || []; stats = j.stats; categorias = j.categorias || []; estados = j.estados || [];
+    } catch (e) { datos = []; stats = null; }
+    prepararSelects();
+    renderStats();
+    render();
+  }
+
+  function prepararSelects() {
+    const fc = $("filtro-cat");
+    if (fc.options.length <= 1) {
+      // Las áreas solo ven sus categorías en el filtro
+      const lista = esAdmin() ? categorias : sesion.categorias;
+      for (const c of lista) fc.add(new Option(c, c));
+    }
+    const fe = $("filtro-estado");
+    if (fe.options.length <= 1) for (const e of estados) fe.add(new Option(e, e));
+    const ec = $("e-categoria");
+    if (!ec.options.length) for (const c of categorias) ec.add(new Option(c, c));
+    const se = $("s-estado");
+    if (!se.options.length) for (const e of estados) se.add(new Option(e, e));
+  }
+
   function renderStats() {
-    const cards = document.getElementById("cards");
+    const cards = $("cards");
     cards.replaceChildren();
     if (!stats) return;
+    const porEstado = Object.fromEntries(stats.porEstado.map((e) => [e.estado, e.total]));
     const items = [
-      ["Total", stats.total, "inbox", "#00658e"],
-      ["Hoy", stats.hoy, "today", "#388e3c"],
-      ["Últimos 7 días", stats.semana, "date_range", "#f57c00"],
-      ["Últimos 30 días", stats.mes, "calendar_month", "#8e24aa"],
+      ["Total", stats.total, "inbox", "#00658e", ""],
+      ["Pendientes", porEstado["Pendiente"] || 0, "schedule", COLORES_ESTADO["Pendiente"], "Pendiente"],
+      ["En curso", porEstado["En curso"] || 0, "engineering", COLORES_ESTADO["En curso"], "En curso"],
+      ["Resueltos", porEstado["Resuelto"] || 0, "task_alt", COLORES_ESTADO["Resuelto"], "Resuelto"],
+      ["Rechazados", porEstado["Rechazado"] || 0, "block", COLORES_ESTADO["Rechazado"], "Rechazado"],
     ];
-    for (const [lbl, num, icono, color] of items) {
+    for (const [lbl, num, icono, color, filtro] of items) {
       const ico = el("div", { className: "ico" }, [el("span", { className: "material-symbols-outlined", textContent: icono })]);
       ico.style.background = color;
-      cards.appendChild(el("div", { className: "card" }, [
+      const c = el("div", { className: "card click", title: "Filtrar por este estado" }, [
         ico,
         el("div", {}, [el("div", { className: "num", textContent: String(num) }), el("div", { className: "lbl", textContent: lbl })]),
-      ]));
+      ]);
+      c.onclick = () => { $("filtro-estado").value = filtro; render(); };
+      cards.appendChild(c);
     }
 
     // Por categoría (clic = filtrar la tabla)
-    const cat = document.getElementById("chart-cat");
+    const cat = $("chart-cat");
     cat.replaceChildren();
     const max = Math.max(1, ...stats.porCategoria.map((c) => c.total));
     if (!stats.porCategoria.length) cat.appendChild(el("div", { className: "vacio-chart", textContent: "Todavía no hay reclamos." }));
@@ -232,12 +379,12 @@
         el("div", { className: "track" }, [fill]),
         el("span", { className: "n", textContent: String(c.total) }),
       ]);
-      fila.onclick = () => { document.getElementById("filtro-cat").value = c.categoria; render(); };
+      fila.onclick = () => { $("filtro-cat").value = c.categoria; render(); };
       cat.appendChild(fila);
     }
 
     // Últimos 14 días (rellena los días sin reclamos con 0)
-    const dias = document.getElementById("chart-dias");
+    const dias = $("chart-dias");
     dias.replaceChildren();
     const mapa = Object.fromEntries(stats.porDia.map((d) => [d.dia, d.total]));
     const serie = [];
@@ -264,17 +411,25 @@
   }
 
   function render() {
-    const q = document.getElementById("buscar").value.trim().toLowerCase();
-    const cat = document.getElementById("filtro-cat").value;
+    const q = $("buscar").value.trim().toLowerCase();
+    const cat = $("filtro-cat").value;
+    const est = $("filtro-estado").value;
     const lista = datos.filter((r) =>
-      (!cat || r.categoria === cat) &&
-      (!q || [r.nombre, r.dni, r.domicilio, r.detalle, r.telefono, r.categoria].join(" ").toLowerCase().includes(q)));
-    const tbody = document.getElementById("filas");
+      (!cat || r.categoria === cat) && (!est || r.estado === est) &&
+      (!q || [r.nombre, r.dni, r.domicilio, r.detalle, r.telefono, r.categoria, r.estado].join(" ").toLowerCase().includes(q)));
+    const tbody = $("filas");
     tbody.replaceChildren();
     for (const r of lista) {
       const tr = document.createElement("tr");
       celda(tr, r.id, "nowrap");
       celda(tr, r.fecha, "nowrap");
+
+      const chipE = el("span", { className: "chip", textContent: r.estado });
+      chipE.style.background = colorEstado(r.estado);
+      const tdE = el("td", {}, [chipE]);
+      if (r.respuesta) tdE.appendChild(el("div", { className: "resp", textContent: "💬 " + r.respuesta }));
+      tr.appendChild(tdE);
+
       const chip = el("span", { className: "chip", textContent: r.categoria });
       chip.style.background = colorDe(r.categoria);
       tr.appendChild(el("td", {}, [chip]));
@@ -285,71 +440,167 @@
       celda(tr, r.telefono, "nowrap");
       celda(tr, r.via_audio ? "Audio" : "Texto", "nowrap");
 
-      const bEd = el("button", { className: "ib", title: "Editar reclamo" }, [el("span", { className: "material-symbols-outlined", textContent: "edit" })]);
-      bEd.onclick = () => abrirEditar(r);
-      const bDel = el("button", { className: "ib del", title: "Eliminar reclamo" }, [el("span", { className: "material-symbols-outlined", textContent: "delete" })]);
-      bDel.onclick = () => abrirEliminar(r);
-      tr.appendChild(el("td", {}, [el("div", { className: "acciones" }, [bEd, bDel])]));
+      // Todos pueden cambiar el estado; editar y eliminar solo el admin
+      const acc = el("div", { className: "acciones" });
+      const bEs = el("button", { className: "ib", title: "Cambiar estado" }, [el("span", { className: "material-symbols-outlined", textContent: "published_with_changes" })]);
+      bEs.onclick = () => abrirEstado(r);
+      acc.appendChild(bEs);
+      if (esAdmin()) {
+        const bEd = el("button", { className: "ib", title: "Editar reclamo" }, [el("span", { className: "material-symbols-outlined", textContent: "edit" })]);
+        bEd.onclick = () => abrirEditar(r);
+        const bDel = el("button", { className: "ib del", title: "Eliminar reclamo" }, [el("span", { className: "material-symbols-outlined", textContent: "delete" })]);
+        bDel.onclick = () => abrirEliminar(r);
+        acc.appendChild(bEd); acc.appendChild(bDel);
+      }
+      tr.appendChild(el("td", {}, [acc]));
       tbody.appendChild(tr);
     }
-    document.getElementById("vacio").style.display = lista.length ? "none" : "block";
-    document.getElementById("contador").textContent = `${lista.length} reclamo${lista.length === 1 ? "" : "s"}`;
+    $("vacio").hidden = lista.length > 0;
+    $("contador").textContent = `${lista.length} reclamo${lista.length === 1 ? "" : "s"}`;
   }
 
-  // ── Editar ──
+  async function enviar(url, metodo, body) {
+    const r = await fetch(url, {
+      method: metodo,
+      headers: body ? { "Content-Type": "application/json" } : {},
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (r.status === 401) { mostrarLogin(); throw new Error("Tu sesión expiró. Ingresá de nuevo."); }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || "No se pudo completar la acción.");
+    return j;
+  }
+
+  // ── Cambiar estado ──
+  function abrirEstado(r) {
+    estadoId = r.id;
+    $("s-titulo").textContent = "Estado del reclamo N° " + r.id;
+    $("s-estado").value = r.estado;
+    $("s-respuesta").value = r.respuesta || "";
+    $("s-ultimo").textContent = r.estado_fecha ? `Último cambio: ${r.estado_fecha}${r.estado_por ? " — " + r.estado_por : ""}` : "";
+    $("s-err").textContent = "";
+    $("dlg-estado").showModal();
+  }
+
+  async function guardarEstado(ev) {
+    ev.preventDefault();
+    try {
+      await enviar("/api/reclamos/" + estadoId + "/estado", "PATCH", { estado: $("s-estado").value, respuesta: $("s-respuesta").value });
+      $("dlg-estado").close(); cargar();
+    } catch (e) { $("s-err").textContent = e.message; }
+  }
+
+  // ── Editar (admin) ──
   function abrirEditar(r) {
     editandoId = r.id;
-    document.getElementById("dlg-titulo").textContent = "Editar reclamo N° " + r.id;
-    document.getElementById("e-nombre").value = r.nombre;
-    document.getElementById("e-dni").value = r.dni;
-    document.getElementById("e-domicilio").value = r.domicilio;
-    document.getElementById("e-categoria").value = r.categoria;
-    document.getElementById("e-telefono").value = r.telefono || "";
-    document.getElementById("e-detalle").value = r.detalle;
-    document.getElementById("e-err").textContent = "";
-    document.getElementById("dlg-editar").showModal();
+    $("dlg-titulo").textContent = "Editar reclamo N° " + r.id;
+    $("e-nombre").value = r.nombre; $("e-dni").value = r.dni; $("e-domicilio").value = r.domicilio;
+    $("e-categoria").value = r.categoria; $("e-telefono").value = r.telefono || ""; $("e-detalle").value = r.detalle;
+    $("e-err").textContent = "";
+    $("dlg-editar").showModal();
   }
 
   async function guardarEdicion(ev) {
     ev.preventDefault();
-    const body = {
-      nombre: document.getElementById("e-nombre").value,
-      dni: document.getElementById("e-dni").value,
-      domicilio: document.getElementById("e-domicilio").value,
-      categoria: document.getElementById("e-categoria").value,
-      telefono: document.getElementById("e-telefono").value,
-      detalle: document.getElementById("e-detalle").value,
-    };
     try {
-      const r = await fetch("/api/reclamos/" + editandoId, {
-        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      await enviar("/api/reclamos/" + editandoId, "PUT", {
+        nombre: $("e-nombre").value, dni: $("e-dni").value, domicilio: $("e-domicilio").value,
+        categoria: $("e-categoria").value, telefono: $("e-telefono").value, detalle: $("e-detalle").value,
       });
-      const j = await r.json();
-      if (!r.ok) { document.getElementById("e-err").textContent = j.error || "No se pudo guardar."; return; }
-      document.getElementById("dlg-editar").close();
-      cargar();
-    } catch (e) { document.getElementById("e-err").textContent = "Error de conexión."; }
+      $("dlg-editar").close(); cargar();
+    } catch (e) { $("e-err").textContent = e.message; }
   }
 
-  // ── Eliminar ──
+  // ── Eliminar (admin) ──
   function abrirEliminar(r) {
     eliminandoId = r.id;
-    document.getElementById("del-texto").textContent =
-      `¿Seguro que querés eliminar el reclamo N° ${r.id} de ${r.nombre} (${r.categoria})? Esta acción no se puede deshacer.`;
-    document.getElementById("d-err").textContent = "";
-    document.getElementById("dlg-eliminar").showModal();
+    $("del-texto").textContent = `¿Seguro que querés eliminar el reclamo N° ${r.id} de ${r.nombre} (${r.categoria})? Esta acción no se puede deshacer.`;
+    $("d-err").textContent = "";
+    $("dlg-eliminar").showModal();
   }
 
   async function confirmarEliminar() {
     try {
-      const r = await fetch("/api/reclamos/" + eliminandoId, { method: "DELETE" });
-      if (!r.ok) { document.getElementById("d-err").textContent = (await r.json()).error || "No se pudo eliminar."; return; }
-      document.getElementById("dlg-eliminar").close();
-      cargar();
-    } catch (e) { document.getElementById("d-err").textContent = "Error de conexión."; }
+      await enviar("/api/reclamos/" + eliminandoId, "DELETE");
+      $("dlg-eliminar").close(); cargar();
+    } catch (e) { $("d-err").textContent = e.message; }
   }
 
-  cargar();
+  // ── Usuarios (admin) ──
+  async function abrirUsuarios() {
+    if (!$("u-cats").children.length) {
+      for (const c of categorias) {
+        const cb = el("input", { type: "checkbox", value: c });
+        $("u-cats").appendChild(el("label", {}, [cb, c]));
+      }
+    }
+    nuevoUsuario();
+    await cargarUsuarios();
+    $("dlg-usuarios").showModal();
+  }
+
+  async function cargarUsuarios() {
+    try { usuarios = (await enviar("/api/reclamos-usuarios", "GET")).usuarios; } catch (e) { usuarios = []; }
+    const lista = $("u-lista");
+    lista.replaceChildren();
+    if (!usuarios.length) lista.appendChild(el("div", { className: "info", textContent: "Todavía no creaste usuarios de áreas." }));
+    for (const u of usuarios) {
+      const bEd = el("button", { className: "ib", title: "Editar usuario" }, [el("span", { className: "material-symbols-outlined", textContent: "edit" })]);
+      bEd.onclick = () => editarUsuario(u);
+      const bDel = el("button", { className: "ib del", title: "Eliminar usuario" }, [el("span", { className: "material-symbols-outlined", textContent: "delete" })]);
+      bDel.onclick = () => eliminarUsuario(u);
+      lista.appendChild(el("div", { className: "usr" }, [
+        el("div", {}, [
+          el("div", { className: "t", textContent: u.nombre + " (" + u.usuario + ")" }),
+          el("div", { className: "c", textContent: u.categorias.join(", ") }),
+        ]),
+        el("div", { className: "acciones" }, [bEd, bDel]),
+      ]));
+    }
+  }
+
+  function marcarCats(sel) {
+    for (const cb of $("u-cats").querySelectorAll("input")) cb.checked = sel.includes(cb.value);
+  }
+
+  function nuevoUsuario() {
+    editandoUsuarioId = null;
+    $("u-form-titulo").textContent = "Nuevo usuario";
+    $("u-usuario").value = ""; $("u-usuario").disabled = false;
+    $("u-nombre").value = ""; $("u-pass").value = ""; $("u-pass").placeholder = "mínimo 8 caracteres";
+    $("u-pass").required = true;
+    marcarCats([]);
+    $("u-err").textContent = ""; $("u-guardar").textContent = "Crear usuario"; $("u-cancelar-edicion").hidden = true;
+  }
+
+  function editarUsuario(u) {
+    editandoUsuarioId = u.id;
+    $("u-form-titulo").textContent = "Editando: " + u.usuario;
+    $("u-usuario").value = u.usuario; $("u-usuario").disabled = true;
+    $("u-nombre").value = u.nombre; $("u-pass").value = ""; $("u-pass").placeholder = "vacío = no cambiar";
+    $("u-pass").required = false;
+    marcarCats(u.categorias);
+    $("u-err").textContent = ""; $("u-guardar").textContent = "Guardar cambios"; $("u-cancelar-edicion").hidden = false;
+  }
+
+  async function guardarUsuario(ev) {
+    ev.preventDefault();
+    const cats = [...$("u-cats").querySelectorAll("input:checked")].map((c) => c.value);
+    const body = { nombre: $("u-nombre").value, password: $("u-pass").value, categorias: cats };
+    try {
+      if (editandoUsuarioId) await enviar("/api/reclamos-usuarios/" + editandoUsuarioId, "PUT", body);
+      else await enviar("/api/reclamos-usuarios", "POST", { ...body, usuario: $("u-usuario").value });
+      nuevoUsuario(); await cargarUsuarios();
+    } catch (e) { $("u-err").textContent = e.message; }
+  }
+
+  async function eliminarUsuario(u) {
+    if (!confirm(`¿Eliminar el usuario "${u.usuario}" (${u.nombre})? Perderá el acceso de inmediato.`)) return;
+    try { await enviar("/api/reclamos-usuarios/" + u.id, "DELETE"); nuevoUsuario(); await cargarUsuarios(); }
+    catch (e) { $("u-err").textContent = e.message; }
+  }
+
+  iniciar();
 </script>
 </body>
 </html>

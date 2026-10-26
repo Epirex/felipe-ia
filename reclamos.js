@@ -1,14 +1,21 @@
 // ============================================================
 // MÓDULO DE RECLAMOS — conversación guiada paso a paso
-// Recolecta: nombre completo, DNI, domicilio/lugar y detalle,
-// y lo guarda en la tabla "reclamos" de la base de datos.
+// Al elegir "reclamos" el ciudadano puede:
+//   1) Hacer un reclamo: nombre, DNI, domicilio, categoría y detalle.
+//      Se guarda en la tabla "reclamos" y se le informa su número.
+//   2) Consultar el estado de un reclamo: número + DNI (verificación).
 // El estado de la conversación vive en memoria (expira a los 10 min).
 // ============================================================
 
-const { guardarReclamo } = require("./db");
+const { guardarReclamo, getReclamoPorId } = require("./db");
 
 const RECLAMO_TTL_MS = 10 * 60 * 1000;
 const conversaciones = new Map(); // jid → { paso, datos, ts }
+
+// Anti-fuerza-bruta en las consultas: tras MAX_FALLOS_CONSULTA fallos se bloquea al número un rato
+const MAX_FALLOS_CONSULTA = 5;
+const BLOQUEO_CONSULTA_MS = 15 * 60 * 1000;
+const fallosConsulta = new Map(); // jid → { n, hasta }
 
 const CATEGORIAS = [
   "Cloacas",
@@ -34,14 +41,20 @@ const PREGUNTAS = {
   categoria: PREGUNTA_CATEGORIA,
   detalle:
     "¿Podés comentarme *detalladamente tu reclamo en un solo mensaje*? Es importante que expliques todo en un solo mensaje así puedo guardar esa información completa en nuestro sistema 📝",
+  consultaNumero: "¿Cuál es el *número de tu reclamo*? (es el que te di cuando lo cargaste)",
+  consultaDni:    "Para verificar que sos vos, ¿cuál es el *DNI* con el que cargaste el reclamo?",
 };
 
+// Primer mensaje al elegir "Reclamos": ¿hacer uno nuevo o consultar?
 const MENSAJE_INICIO =
-  "📢 *Reclamos*\n¡Estoy acá para ayudarte! Te voy a hacer unas preguntas cortas para registrar tu reclamo.\n(Si querés cancelar en cualquier momento, escribí *cancelar*.)\n\n" +
-  PREGUNTAS.nombre;
+  "📢 *Reclamos*\n¿Qué querés hacer? Respondeme con el *número*:\n\n" +
+  "1. Hacer un reclamo\n" +
+  "2. Consultar el estado de un reclamo\n\n" +
+  "(Si querés cancelar en cualquier momento, escribí *cancelar*.)";
 
-const MENSAJE_FINAL =
-  "✅ ¡Gracias por cooperar! Tu reclamo fue registrado con éxito y ahora mismo lo derivo al área correspondiente. ¡Que tengas un excelente día! 😊";
+const MENSAJE_ALTA =
+  "¡Estoy acá para ayudarte! 🙌 Te voy a hacer unas preguntas cortas para registrar tu reclamo.\n\n" +
+  PREGUNTAS.nombre;
 
 const PALABRAS_CANCELAR = ["cancelar", "cancelo", "salir", "menu", "volver", "regresar", "atras"];
 
@@ -50,7 +63,7 @@ function normalizar(t) {
 }
 
 function iniciarReclamo(jid) {
-  conversaciones.set(jid, { paso: "nombre", datos: {}, ts: Date.now() });
+  conversaciones.set(jid, { paso: "opcion", datos: {}, ts: Date.now() });
 }
 
 function reclamoActivo(jid) {
@@ -72,14 +85,98 @@ function esCancelacion(texto) {
   return palabras.some((p) => PALABRAS_CANCELAR.includes(p));
 }
 
-// Procesa la respuesta del ciudadano. Devuelve { mensaje, terminado }.
+function bloqueado(jid) {
+  const f = fallosConsulta.get(jid);
+  if (!f) return false;
+  if (f.hasta && Date.now() < f.hasta) return true;
+  if (f.hasta && Date.now() >= f.hasta) fallosConsulta.delete(jid);
+  return false;
+}
+
+function registrarFalloConsulta(jid) {
+  const f = fallosConsulta.get(jid) || { n: 0, hasta: 0 };
+  f.n++;
+  if (f.n >= MAX_FALLOS_CONSULTA) f.hasta = Date.now() + BLOQUEO_CONSULTA_MS;
+  fallosConsulta.set(jid, f);
+  // Limpieza para no acumular memoria
+  if (fallosConsulta.size > 500) {
+    for (const [k, v] of fallosConsulta) if (v.hasta && Date.now() >= v.hasta) fallosConsulta.delete(k);
+  }
+}
+
+const ICONO_ESTADO = { "Pendiente": "🕓", "En curso": "🛠️", "Resuelto": "✅", "Rechazado": "❌" };
+
+function textoEstado(r) {
+  let t =
+    `📄 *Reclamo N° ${r.id}*\n` +
+    `Categoría: ${r.categoria}\n` +
+    `Fecha de carga: ${r.fecha}\n` +
+    `Estado: ${ICONO_ESTADO[r.estado] || "ℹ️"} *${r.estado}*`;
+  if (r.respuesta) t += `\n\n💬 *Respuesta del área:*\n${r.respuesta}`;
+  return t;
+}
+
+// Procesa la respuesta del ciudadano. Devuelve { mensaje, terminado, tipo }.
+//   tipo: "alta" (reclamo registrado) | "consulta" (consulta resuelta) | undefined (sigue la charla)
 // `telefono` es el número (o ID de WhatsApp) para contactarlo si hace falta.
 function procesarReclamo(jid, texto, telefono, { viaAudio = false } = {}) {
   const c = conversaciones.get(jid);
   const valor = String(texto).trim();
+  const norm = normalizar(valor);
   c.ts = Date.now();
 
   switch (c.paso) {
+    case "opcion": {
+      const palabras = norm.split(/[^a-z0-9ñ]+/);
+      // "consultar/estado/seguimiento" se revisa primero: "consultar mi reclamo" también contiene "reclamo"
+      const quiereConsulta = norm === "2" || /consult|estado|seguimiento|como (va|esta)|numero/.test(norm);
+      const quiereAlta = norm === "1" || /hacer|nuevo|cargar|realizar|iniciar|quiero reclamar|denunciar/.test(norm) || palabras.includes("reclamar");
+      if (quiereConsulta) {
+        if (bloqueado(jid)) {
+          conversaciones.delete(jid);
+          return { mensaje: "⛔ Hiciste demasiados intentos fallidos de consulta. Probá de nuevo en unos minutos o llamá al 03834443303.", terminado: true, tipo: "consulta" };
+        }
+        c.paso = "consulta_numero";
+        return { mensaje: PREGUNTAS.consultaNumero, terminado: false };
+      }
+      if (quiereAlta) {
+        c.paso = "nombre";
+        return { mensaje: MENSAJE_ALTA, terminado: false };
+      }
+      return { mensaje: "No te entendí 🤔 Respondeme *1* para hacer un reclamo o *2* para consultar el estado de uno.", terminado: false };
+    }
+
+    case "consulta_numero": {
+      const num = valor.replace(/[^0-9]/g, "");
+      if (!num || num.length > 9) {
+        return { mensaje: "Necesito el número de reclamo (solo números). " + PREGUNTAS.consultaNumero, terminado: false };
+      }
+      c.datos.numero = Number(num);
+      c.paso = "consulta_dni";
+      return { mensaje: PREGUNTAS.consultaDni, terminado: false };
+    }
+
+    case "consulta_dni": {
+      if (bloqueado(jid)) {
+        conversaciones.delete(jid);
+        return { mensaje: "⛔ Hiciste demasiados intentos fallidos de consulta. Probá de nuevo en unos minutos o llamá al 03834443303.", terminado: true, tipo: "consulta" };
+      }
+      const dni = valor.replace(/[.\s-]/g, "");
+      const r = /^\d{7,8}$/.test(dni) ? getReclamoPorId(c.datos.numero) : null;
+      conversaciones.delete(jid);
+      // Mismo mensaje si el número no existe o el DNI no coincide (no revelar qué reclamos existen)
+      if (!r || String(r.dni) !== dni) {
+        registrarFalloConsulta(jid);
+        return {
+          mensaje: "No encontré ningún reclamo con esos datos 😕 Revisá el número y el DNI e intentá de nuevo escribiendo *4*.",
+          terminado: true,
+          tipo: "consulta",
+        };
+      }
+      fallosConsulta.delete(jid);
+      return { mensaje: textoEstado(r), terminado: true, tipo: "consulta" };
+    }
+
     case "nombre":
       if (valor.length < 3 || valor.length > 100 || /^\d+$/.test(valor)) {
         return { mensaje: "Necesito tu nombre y apellido para registrar el reclamo. " + PREGUNTAS.nombre, terminado: false };
@@ -108,14 +205,14 @@ function procesarReclamo(jid, texto, telefono, { viaAudio = false } = {}) {
 
     case "categoria": {
       // Acepta el número (1-10) o el nombre de la categoría (también por audio)
-      const norm = normalizar(valor).replace(/[^a-z0-9ñ ]/g, "").trim();
+      const n = norm.replace(/[^a-z0-9ñ ]/g, "").trim();
       let categoria = null;
-      if (/^\d+$/.test(norm)) {
-        categoria = CATEGORIAS[Number(norm) - 1] || null;
-      } else if (norm.length >= 3) {
+      if (/^\d+$/.test(n)) {
+        categoria = CATEGORIAS[Number(n) - 1] || null;
+      } else if (n.length >= 3) {
         categoria = CATEGORIAS.find((cat) => {
-          const n = normalizar(cat);
-          return norm === n || norm.includes(n);
+          const nc = normalizar(cat);
+          return n === nc || n.includes(nc);
         }) || null;
       }
       if (!categoria) {
@@ -126,11 +223,11 @@ function procesarReclamo(jid, texto, telefono, { viaAudio = false } = {}) {
       return { mensaje: `Anotado: *${categoria}* ✅\n\n` + PREGUNTAS.detalle, terminado: false };
     }
 
-    case "detalle":
+    case "detalle": {
       if (valor.length < 10) {
         return { mensaje: "Necesito un poco más de detalle para poder derivarlo bien. " + PREGUNTAS.detalle, terminado: false };
       }
-      guardarReclamo({
+      const numero = guardarReclamo({
         nombre: c.datos.nombre,
         dni: c.datos.dni,
         domicilio: c.datos.domicilio,
@@ -140,7 +237,15 @@ function procesarReclamo(jid, texto, telefono, { viaAudio = false } = {}) {
         viaAudio,
       });
       conversaciones.delete(jid);
-      return { mensaje: MENSAJE_FINAL, terminado: true };
+      return {
+        mensaje:
+          `✅ ¡Gracias por cooperar! Tu reclamo fue registrado con éxito. *Tu número de reclamo es el ${numero}* 🔖\n\n` +
+          "Guardalo: más adelante podés escribirme *4* y elegir *consultar el estado* para saber cómo va (te voy a pedir este número y tu DNI).\n\n" +
+          "Ahora mismo lo derivo al área correspondiente. ¡Que tengas un excelente día! 😊",
+        terminado: true,
+        tipo: "alta",
+      };
+    }
   }
 }
 
