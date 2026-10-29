@@ -36,13 +36,13 @@ const PREGUNTA_CATEGORIA =
 
 const PREGUNTAS = {
   nombre:    "¿Me brindás tu *nombre completo*?",
-  dni:       "¿Cuál es tu *DNI*?",
+  dni:       "¿Cuál es tu *DNI*? (sin puntos ni espacios)",
   domicilio: "¿Cuál es tu *domicilio o el lugar del problema*?",
   categoria: PREGUNTA_CATEGORIA,
   detalle:
     "¿Podés comentarme *detalladamente tu reclamo en un solo mensaje*? Es importante que expliques todo en un solo mensaje así puedo guardar esa información completa en nuestro sistema 📝",
   consultaNumero: "¿Cuál es el *número de tu reclamo*? (es el que te di cuando lo cargaste)",
-  consultaDni:    "Para verificar que sos vos, ¿cuál es el *DNI* con el que cargaste el reclamo?",
+  consultaDni:    "Para verificar que sos vos, ¿cuál es el *DNI* con el que cargaste el reclamo? (sin puntos ni espacios)",
 };
 
 // Primer mensaje al elegir "Reclamos": ¿hacer uno nuevo o consultar?

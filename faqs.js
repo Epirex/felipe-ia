@@ -339,6 +339,10 @@ const charla = [
     respuesta: "🇦🇷 *Felipe Varela* (1821-1870) fue un caudillo y militar catamarqueño, nacido en Huillapima. Es recordado por su “Proclama a los pueblos americanos” (1866) y por defender a las provincias del interior. Por eso me llamo así, en su honor. 💙",
   },
   {
+    palabras_clave: ["felipe", "felipe ia", "che felipe", "sos felipe"],
+    respuesta: "¡Sí! ¡Ese soy yo! 😊 ¿Qué necesitás?",
+  },
+  {
     palabras_clave: ["que hora es", "que hora son", "me decis la hora", "hora actual"],
     respuesta: () => `🕐 Son las ${hoyAR({ hour: "2-digit", minute: "2-digit" })} hs en Valle Viejo.`,
   },
