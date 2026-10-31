@@ -28,6 +28,7 @@ const { registrarMensaje, registrarContacto, getContactosConocidos } = require("
 const { iniciarPanel }     = require("./panel");
 const botState             = require("./state");
 const { notificarAlerta }  = require("./alertas");
+const { iniciarBackups }    = require("./backup");
 const { transcribirAudio, transcripcionDisponible, MAX_SEGUNDOS_AUDIO } = require("./transcripcion");
 
 // ── Configuración ────────────────────────────────────────────
@@ -170,12 +171,34 @@ function buscarCharla(texto) {
   return null;
 }
 
+// Texto sin signos de puntuación: "¡Hola, buen día!" → "hola buen dia"
+function textoPlano(texto) {
+  return texto.replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+// ¿El texto contiene la palabra/frase COMPLETA? (no por substring: "programa" no contiene "rama").
+// Los números solo valen si el mensaje es exactamente ese número. Acepta plural simple (s/es).
+function contienePalabra(plano, kw) {
+  const k = textoPlano(normalizar(kw));
+  if (!k) return false;
+  if (/^\d+$/.test(k)) return plano === k;
+  const esc = k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^| )${esc}(s|es)?( |$)`).test(plano);
+}
+
+// Volver al menú: solo si el mensaje ES un pedido de volver (hasta 3 palabras),
+// no cuando la palabra aparece dentro de una frase ("tuve que volver a llamar").
+function esVolver(plano) {
+  const palabras = plano.split(" ");
+  return palabras.length <= 3 && palabras.some((p) => VOLVER.includes(p));
+}
+
 function buscarRespuesta(mensaje, jid) {
   const texto = normalizar(mensaje);
+  const plano = textoPlano(texto);
 
   // Volver al menú desde cualquier lado
-  const palabras = texto.split(/[^a-z0-9ñ]+/);
-  if (palabras.some((p) => VOLVER.includes(p))) {
+  if (esVolver(plano)) {
     submenuActivo.delete(jid);
     return { respuesta: bienvenida, faq: "volver", respondido: true, enviarVolver: false };
   }
@@ -183,10 +206,31 @@ function buscarRespuesta(mensaje, jid) {
   // Si el usuario está dentro de un submenú y manda una opción válida
   const activo = submenuActivo.get(jid);
   if (activo && Date.now() - activo.ts < SUBMENU_TTL_MS) {
-    const opcion = submenus[activo.id].opciones[texto];
+    const opcion = submenus[activo.id].opciones[plano];
     if (opcion) {
-      return { respuesta: opcion.respuesta, faq: `${activo.id}_${texto}`, respondido: true, enviarVolver: true };
+      return { respuesta: opcion.respuesta, faq: `${activo.id}_${plano}`, respondido: true, enviarVolver: true };
     }
+  }
+
+  // FAQs del municipio: gana la coincidencia MÁS ESPECÍFICA (palabra clave más larga),
+  // así "en qué calle está la casa de la juventud" va a Juventud y no a Reclamos.
+  // Se revisan antes que saludos y nombre: "Hola, quiero hacer un reclamo" debe abrir Reclamos.
+  let mejor = null, mejorLargo = 0;
+  for (const item of faqs) {
+    for (const kw of item.palabras_clave) {
+      if (!contienePalabra(plano, kw)) continue;
+      const largo = textoPlano(normalizar(kw)).length;
+      if (largo > mejorLargo) { mejor = item; mejorLargo = largo; }
+    }
+  }
+  if (mejor) {
+    if (mejor.respuesta.tipo === "submenu") {
+      submenuActivo.set(jid, { id: mejor.respuesta.id, ts: Date.now() });
+    } else {
+      submenuActivo.delete(jid);
+    }
+    const enviarVolver = mejor.enviarVolver !== undefined ? mejor.enviarVolver : true;
+    return { respuesta: mejor.respuesta, faq: mejor.palabras_clave[0], respondido: true, enviarVolver };
   }
 
   // Se presentó con su nombre: "hola soy Esteban", "me llamo Ana"
@@ -201,26 +245,9 @@ function buscarRespuesta(mensaje, jid) {
     };
   }
 
-  if (SALUDOS.some((s) => texto === normalizar(s) || texto.includes(normalizar(s)))) {
+  if (SALUDOS.some((s) => contienePalabra(plano, s))) {
     submenuActivo.delete(jid);
     return { respuesta: bienvenida, faq: "bienvenida", respondido: true, enviarVolver: false };
-  }
-
-  for (const item of faqs) {
-    const match = item.palabras_clave.some((kw) => {
-      const k = normalizar(kw);
-      // Los números solo valen si el mensaje es exactamente ese número
-      return /^\d+$/.test(k) ? texto === k : texto.includes(k);
-    });
-    if (match) {
-      if (item.respuesta.tipo === "submenu") {
-        submenuActivo.set(jid, { id: item.respuesta.id, ts: Date.now() });
-      } else {
-        submenuActivo.delete(jid);
-      }
-      const enviarVolver = item.enviarVolver !== undefined ? item.enviarVolver : true;
-      return { respuesta: item.respuesta, faq: item.palabras_clave[0], respondido: true, enviarVolver };
-    }
   }
 
   // Ninguna FAQ del municipio: probar charla casual
@@ -559,7 +586,7 @@ async function iniciarBot(intentosReconexion = 0) {
         logger.info(`Intentando reconectar en ${espera / 1000}s (Intento ${intentosReconexion + 1})...`);
         
         setTimeout(() => {
-          iniciarBot(intentosReconexion + 1);
+          arrancarBot(intentosReconexion + 1);
         }, espera);
       } else {
         logger.error("🔒 Sesión cerrada. Borrá la carpeta 'auth' y reiniciá el servicio en Railway.");
@@ -615,7 +642,7 @@ async function iniciarBot(intentosReconexion = 0) {
   });
 
   // ── Escucha de mensajes entrantes ────────────────────────────
-  sock.ev.on("messages.upsert", async ({ messages, type }) => {
+  const manejarUpsert = async ({ messages, type }) => {
     if (type !== "notify") return;
 
     const msg = messages[0];
@@ -796,14 +823,40 @@ async function iniciarBot(intentosReconexion = 0) {
     } catch (err) {
       logger.error(`No se pudo enviar respuesta a ${remitente}:`, err.message);
     }
+  };
+
+  // Cualquier error en un mensaje se loguea y NO tumba el proceso (una promesa rechazada sin manejar lo mata)
+  sock.ev.on("messages.upsert", (ev) => {
+    manejarUpsert(ev).catch((err) => logger.error("Error procesando mensaje entrante:", err?.message || err));
   });
 
   // ── Arrancar panel web (solo la primera vez, no en reconexiones) ──
   if (!panelIniciado) {
     iniciarPanel(logger);
+    iniciarBackups(logger, notificarAlerta);
     panelIniciado = true;
   }
 }
 
-iniciarBot().catch((err) => logger.error("Error crítico al iniciar el bot:", err));
+// Arranca (o re-arranca) el bot. Si iniciarBot() falla antes de conectar (p. ej. sin internet
+// al pedir la versión de WhatsApp), reintenta con espera creciente en vez de quedar muerto.
+const ESPERAS_REINTENTO = [2000, 5000, 10000, 30000, 60000];
+function arrancarBot(intento = 0) {
+  iniciarBot(intento).catch((err) => {
+    const espera = ESPERAS_REINTENTO[Math.min(intento, ESPERAS_REINTENTO.length - 1)];
+    logger.error(`Error crítico al iniciar el bot: ${err?.message || err}. Reintento en ${espera / 1000}s.`);
+    setTimeout(() => arrancarBot(intento + 1), espera);
+  });
+}
+
+// Red de seguridad global: loguear y seguir, en vez de que el proceso muera por un error suelto.
+process.on("unhandledRejection", (reason) => {
+  logger.error("Promesa rechazada sin manejar:", reason?.message || reason);
+});
+process.on("uncaughtException", (err) => {
+  logger.error("Excepción no capturada:", err?.stack || err);
+  notificarAlerta("error_no_capturado", `🚨 Felipe IA tuvo un error inesperado: ${String(err?.message || err).slice(0, 300)}`, logger);
+});
+
+arrancarBot();
 

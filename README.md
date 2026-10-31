@@ -51,6 +51,26 @@ Para que el bot funcione 24/7 en producción (Railway), debés configurar las si
 | `ALERT_EMAIL_TO` | (Opcional) Correo electrónico que recibirá las alertas (ej: el tuyo personal). |
 | `GROQ_API_KEY` | (Opcional) API Key de [Groq](https://console.groq.com) para transcribir notas de voz con Whisper. Sin ella, el bot pide que le escriban. |
 | `TZ` | Zona horaria (ej: `America/Argentina/Catamarca`) para que las fechas coincidan localmente. |
+| `BACKUP_EMAIL_TO` | (Recomendado) Correo institucional que recibe la copia diaria de la base como adjunto. Requiere `RESEND_API_KEY`. |
+| `BACKUP_DIAS` | (Opcional) Cuántos backups diarios conservar. Por defecto `14`. |
+| `BACKUP_DIR` | (Opcional) Carpeta de los backups. Por defecto `backups/` junto a la base (dentro del volumen). |
+| `BACKUP_DESACTIVADO` | (Opcional) `1` para apagar los backups automáticos. |
+
+### Backups de la base de datos
+El bot genera **una copia por día** de la base (reclamos, estadísticas, usuarios de áreas), comprimida (`bot-AAAA-MM-DD.db.gz`), y conserva los últimos `BACKUP_DIAS`. Si falta la del día (por un reinicio o deploy), la crea al arrancar. Si falla, avisa por correo.
+
+Hay tres capas, usá al menos las dos primeras:
+1. **Local (automático):** carpeta `backups/` dentro del volumen. Protege de borrados o errores, pero **no** de perder el volumen.
+2. **Fuera del servidor (recomendado):** definí `BACKUP_EMAIL_TO` y la copia del día llega por correo. ⚠️ Contiene DNI y domicilios: usá una casilla institucional con acceso restringido.
+3. **Manual:** botón **Backup** del panel principal (o `/api/backup/descargar`, requiere login de admin) para bajar una copia en el momento. Conviene bajar una antes de cada deploy importante.
+
+Además, activá los **backups del volumen en Railway** (Volume → Backups), que cubren también la sesión de WhatsApp.
+
+#### Restaurar un backup
+1. Detené el servicio (o desplegá con el volumen sin la base).
+2. Descomprimí el archivo: `gunzip bot-AAAA-MM-DD.db.gz` → queda `bot-AAAA-MM-DD.db`.
+3. Copialo como `bot.db` en la ruta de `DB_PATH` (ej. `/app/data/bot.db`), reemplazando la actual.
+4. Iniciá el servicio y verificá en `/reclamos` que estén los datos.
 
 ### Configurar Healthcheck en Railway
 Para que Railway sepa que la aplicación está viva y no la reinicie constantemente:

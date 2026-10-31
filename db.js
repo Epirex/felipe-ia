@@ -449,7 +449,16 @@ function verificarUsuarioReclamos(usuario, password) {
   return ok ? limpiarUsuario(u) : null;
 }
 
+// ── Backup consistente (VACUUM INTO) ──────────────────────────
+// Genera una copia íntegra de la base aunque el bot esté escribiendo. Falla si el destino ya existe.
+function respaldarA(destino) {
+  fs.rmSync(destino, { force: true });
+  db.exec(`VACUUM INTO '${destino.replace(/'/g, "''")}'`);
+}
+
 module.exports = {
+  DB_DIR,
+  respaldarA,
   ESTADOS,
   getReclamoPorId,
   getReclamoPorNumero,

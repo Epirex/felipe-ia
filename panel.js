@@ -6,6 +6,7 @@
 
 const express = require("express");
 const path    = require("path");
+const fs      = require("fs");
 const crypto  = require("crypto");
 const {
   getResumenTotal,
@@ -272,6 +273,21 @@ app.get("/api/export/csv", (req, res) => {
     res.send("\uFEFF" + encabezado + cuerpo);
   } catch (err) {
     res.status(500).send("Error al generar CSV: " + err.message);
+  }
+});
+
+// ── API: descargar un backup fresco de la base (solo admin, tras Basic Auth) ──
+app.get("/api/backup/descargar", async (req, res) => {
+  const { crearBackup, BACKUP_DIR } = require("./backup");
+  const nombre = `manual-${Date.now()}.db.gz`;
+  try {
+    const ruta = await crearBackup(nombre);
+    const fechaHoy = new Date().toISOString().slice(0, 10);
+    res.setHeader("Cache-Control", "no-store");
+    res.download(ruta, `felipe-ia-backup-${fechaHoy}.db.gz`, () => fs.rmSync(path.join(BACKUP_DIR, nombre), { force: true }));
+  } catch (err) {
+    fs.rmSync(path.join(BACKUP_DIR, nombre), { force: true });
+    res.status(500).send("No se pudo generar el backup: " + err.message);
   }
 });
 

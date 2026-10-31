@@ -80,9 +80,13 @@ function cancelarReclamo(jid) {
   conversaciones.delete(jid);
 }
 
+// Solo cancela si el mensaje ES un pedido de cancelar ("cancelar", "salir", "quiero cancelar el reclamo"),
+// nunca por una palabra suelta dentro de una frase ("no puedo salir de mi casa").
 function esCancelacion(texto) {
-  const palabras = normalizar(texto).split(/[^a-z0-9ñ]+/);
-  return palabras.some((p) => PALABRAS_CANCELAR.includes(p));
+  const plano = normalizar(texto).replace(/[^a-z0-9]+/g, " ").trim();
+  if (PALABRAS_CANCELAR.includes(plano)) return true;
+  return /^(quiero |quisiera |deseo |me gustaria )?(cancelar|cancelo|salir|volver|regresar)( con)?( el| mi| este)?( reclamo| tramite| consulta)?( por favor| gracias)?$/.test(plano) ||
+         /^(volver|regresar) al (menu|inicio)$/.test(plano);
 }
 
 function bloqueado(jid) {

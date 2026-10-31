@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -511,6 +511,9 @@
     </a>
     <a href="/api/export/csv" class="header-btn" title="Descargar historial en CSV para Excel">
       <span class="material-symbols-outlined">download</span> Exportar CSV
+    </a>
+    <a href="/api/backup/descargar" class="header-btn" title="Descargar una copia de seguridad completa de la base de datos">
+      <span class="material-symbols-outlined">backup</span> Backup
     </a>
     <button class="header-btn" id="refresh-btn" onclick="refrescarManual()" title="Actualizar datos ahora">
       <span class="material-symbols-outlined" id="refresh-icon">refresh</span> Actualizar
@@ -1071,14 +1074,14 @@
         : it.pregunta;
       const pregunta = escapeHtml(preguntaRaw);
       const tooltip  = escapeHtml(it.pregunta);
-      const dataAttr = encodeURIComponent(it.pregunta);
+      // La pregunta va escapada en un data-attribute (sin onclick inline): el clic se maneja con delegación
       return `
         <tr>
           <td class="rank">${i + 1}</td>
           <td title="${tooltip}">${pregunta}</td>
           <td><span class="badge err">${fmt(it.total)}</span></td>
           <td>
-            <button class="btn-action" onclick="descartarUna('${dataAttr}')" title="Marcar como resuelta">
+            <button class="btn-action" data-accion="descartar" data-pregunta="${tooltip}" title="Marcar como resuelta">
               <span class="material-symbols-outlined">check</span> Resuelta
             </button>
           </td>
@@ -1117,8 +1120,12 @@
     }).join("");
   }
 
-  window.descartarUna = async function(preguntaCodificada) {
-    const pregunta = decodeURIComponent(preguntaCodificada);
+  document.getElementById("tabla-no").addEventListener("click", (ev) => {
+    const btn = ev.target.closest('button[data-accion="descartar"]');
+    if (btn) descartarUna(btn.dataset.pregunta);
+  });
+
+  window.descartarUna = async function(pregunta) {
     try {
       await fetch("/api/no-respondidos/descartar", {
         method: "POST",
