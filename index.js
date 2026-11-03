@@ -238,7 +238,7 @@ function buscarRespuesta(mensaje, jid) {
   if (nombre) {
     submenuActivo.delete(jid);
     return {
-      respuesta: `¡Hola ${nombre}! 😊 Un gusto. ¿Cómo estás?\n\nSoy *Felipe IA*, el asistente virtual del Municipio de Valle Viejo. Escribí *menú* para ver en qué puedo ayudarte.`,
+      respuesta: `¡Hola ${nombre}! 😊 Un gusto. ¿Cómo estás?\n\nSoy *Felipe*, el asistente virtual del Municipio de Valle Viejo. Escribí *menú* para ver en qué puedo ayudarte.`,
       faq: "nombre",
       respondido: true,
       enviarVolver: false,
@@ -595,7 +595,7 @@ async function iniciarBot(intentosReconexion = 0) {
     } else if (connection === "open") {
       // Avisar la recuperación solo si se había avisado la caída prolongada (>5 min)
       if (botState.alertaCaidaEnviada) {
-        notificarAlerta("recuperacion", "✅ Felipe IA volvió a estar en línea tras una caída de más de 5 minutos.", logger);
+        notificarAlerta("recuperacion", "✅ Felipe volvió a estar en línea tras una caída de más de 5 minutos.", logger);
         botState.alertaCaidaEnviada = false;
       }
       botState.online      = true;
@@ -617,7 +617,7 @@ async function iniciarBot(intentosReconexion = 0) {
         const caidaMs = Date.now() - botState.ultimaDesconexion;
         if (caidaMs > 5 * 60 * 1000 && !botState.alertaCaidaEnviada) { // 5 minutos, un solo aviso por caída
           botState.alertaCaidaEnviada = true;
-          notificarAlerta("caida_prolongada", `⚠️ Felipe IA lleva más de 5 minutos desconectado. Reintentando reconexión internamente.`, logger);
+          notificarAlerta("caida_prolongada", `⚠️ Felipe lleva más de 5 minutos desconectado. Reintentando reconexión internamente.`, logger);
         }
       }
     }, 60000);
@@ -855,7 +855,7 @@ process.on("unhandledRejection", (reason) => {
 });
 process.on("uncaughtException", (err) => {
   logger.error("Excepción no capturada:", err?.stack || err);
-  notificarAlerta("error_no_capturado", `🚨 Felipe IA tuvo un error inesperado: ${String(err?.message || err).slice(0, 300)}`, logger);
+  notificarAlerta("error_no_capturado", `🚨 Felipe tuvo un error inesperado: ${String(err?.message || err).slice(0, 300)}`, logger);
 });
 
 arrancarBot();

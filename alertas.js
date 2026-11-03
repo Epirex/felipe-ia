@@ -28,9 +28,9 @@ async function notificarAlerta(tipo, mensaje, logger) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Felipe IA Bot <onboarding@resend.dev>",
+        from: "Felipe Bot <onboarding@resend.dev>",
         to:   [ALERT_EMAIL_TO],
-        subject: `[Alerta] Felipe IA — ${tipo.toUpperCase()}`,
+        subject: `[Alerta] Felipe — ${tipo.toUpperCase()}`,
         text: mensaje,
         html: `<h3>⚠️ Alerta del Bot — Municipio de Valle Viejo</h3><p>${mensaje}</p>`,
       }),

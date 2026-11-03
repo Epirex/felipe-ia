@@ -1,4 +1,4 @@
-# Bot de WhatsApp - Municipio (Felipe IA)
+# Bot de WhatsApp - Municipio (Felipe)
 
 Chatbot simple que responde preguntas frecuentes por WhatsApp usando un número propio. Hecho con **Baileys**, que NO usa navegador (a diferencia de whatsapp-web.js), por lo que es mucho más liviano y estable.
 

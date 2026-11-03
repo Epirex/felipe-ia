@@ -76,10 +76,10 @@ async function enviarPorMail(ruta, logger) {
       method: "POST",
       headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: "Felipe IA Bot <onboarding@resend.dev>",
+        from: "Felipe Bot <onboarding@resend.dev>",
         to: [EMAIL_TO],
-        subject: `[Backup] Felipe IA — ${hoyLocal()}`,
-        text: "Copia diaria de la base de datos de Felipe IA (adjunta, comprimida con gzip). Contiene datos personales: guardala en un lugar seguro.",
+        subject: `[Backup] Felipe — ${hoyLocal()}`,
+        text: "Copia diaria de la base de datos de Felipe (adjunta, comprimida con gzip). Contiene datos personales: guardala en un lugar seguro.",
         attachments: [{ filename: path.basename(ruta), content: fs.readFileSync(ruta).toString("base64") }],
       }),
     });
@@ -101,7 +101,7 @@ async function backupDelDia(logger, notificarAlerta) {
     await enviarPorMail(ruta, logger);
   } catch (err) {
     logger?.error(`💾 [Backup] FALLÓ el backup diario: ${err.message}`);
-    notificarAlerta?.("backup_fallido", `⚠️ Falló el backup diario de la base de datos de Felipe IA: ${err.message}`, logger);
+    notificarAlerta?.("backup_fallido", `⚠️ Falló el backup diario de la base de datos de Felipe: ${err.message}`, logger);
   }
 }
 

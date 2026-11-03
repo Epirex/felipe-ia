@@ -1,4 +1,4 @@
-# Tareas pre-producción — Felipe IA (Railway)
+# Tareas pre-producción — Felipe (Railway)
 
 Contexto: bot de WhatsApp del Municipio de Valle Viejo (Node.js ≥ 22.5, Baileys + Express + SQLite `node:sqlite`), desplegado en **Railway**. Archivos relevantes:
 
@@ -75,7 +75,7 @@ const ADMIN_PASS = process.env.ADMIN_PASS || "felipeia2025";
    - Enviar alerta cuando:
      - la sesión se cierra definitivamente (`loggedOut`) → mensaje urgente: "🔒 Sesión de WhatsApp cerrada, hay que volver a escanear el QR en <URL del panel>/qr";
      - el bot estuvo desconectado más de N minutos (p. ej. 5) sin lograr reconectar;
-     - cuando vuelva a conectarse tras haber estado caído → "✅ Felipe IA volvió a estar en línea".
+     - cuando vuelva a conectarse tras haber estado caído → "✅ Felipe volvió a estar en línea".
    - Evitar spam: no mandar más de una alerta del mismo tipo cada 10 minutos.
 2. **Reconexión con espera creciente** en `index.js`: hoy `iniciarBot()` se vuelve a llamar de inmediato en cada `close`, pudiendo entrar en un bucle. Agregar backoff (por ejemplo 2 s, 5 s, 10 s, 30 s, tope 60 s), resetear el contador al conectar (`connection === "open"`), y evitar que se creen sockets duplicados (cerrar/limpiar el anterior antes de crear el nuevo).
 3. **Estado en `state.js`:** agregar campos útiles como `ultimaDesconexion` (timestamp), `motivoDesconexion` (código) y `sesionCerrada` (boolean), y exponerlos en `/api/status`.

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Felipe IA — Panel Administrativo</title>
+  <title>Felipe — Panel Administrativo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
@@ -12,7 +12,7 @@
     <style>
     /* ══════════════════════════════════════════════════════════
        MATERIAL DESIGN 3 — SISTEMA COMPLETO DE TOKENS
-       Tema: Celeste Municipal · Panel Administrativo Felipe IA
+       Tema: Celeste Municipal · Panel Administrativo Felipe
     ══════════════════════════════════════════════════════════ */
 
     :root {
@@ -498,7 +498,7 @@
   <div class="header-left">
     <div class="avatar"><span class="material-symbols-outlined">robot_2</span></div>
     <div>
-      <h1>Felipe IA</h1>
+      <h1>Felipe</h1>
       <div class="sub">Panel Administrativo — Municipalidad de Valle Viejo</div>
     </div>
   </div>
@@ -515,6 +515,7 @@
     <a href="/api/backup/descargar" class="header-btn" title="Descargar una copia de seguridad completa de la base de datos">
       <span class="material-symbols-outlined">backup</span> Backup
     </a>
+    <form method="POST" action="/logout" style="margin:0"><button type="submit" class="header-btn" title="Cerrar sesión"><span class="material-symbols-outlined">logout</span> Salir</button></form>
     <button class="header-btn" id="refresh-btn" onclick="refrescarManual()" title="Actualizar datos ahora">
       <span class="material-symbols-outlined" id="refresh-icon">refresh</span> Actualizar
     </button>
