@@ -65,6 +65,7 @@ if (!db.prepare("PRAGMA table_info(reclamos)").all().some((c) => c.name === "cat
   if (!cols.includes("respuesta"))    db.exec("ALTER TABLE reclamos ADD COLUMN respuesta TEXT");
   if (!cols.includes("estado_fecha")) db.exec("ALTER TABLE reclamos ADD COLUMN estado_fecha TEXT");
   if (!cols.includes("estado_por"))   db.exec("ALTER TABLE reclamos ADD COLUMN estado_por TEXT");
+  if (!cols.includes("cargado_por"))  db.exec("ALTER TABLE reclamos ADD COLUMN cargado_por TEXT"); // NULL = cargado por Felipe (chat)
 }
 
 // Migración: número de reclamo público (aleatorio de 4 dígitos, único) para que el ciudadano consulte.
@@ -341,12 +342,12 @@ function getMensajesPorPeriodo() {
 // ── Reclamos ──────────────────────────────────────────────────
 // Se guardan con los datos reales que el ciudadano brinda (nombre, DNI, teléfono).
 // Devuelve el número de reclamo (aleatorio de 4 dígitos) asignado.
-function guardarReclamo({ nombre, dni, domicilio, categoria, detalle, telefono, viaAudio }) {
+function guardarReclamo({ nombre, dni, domicilio, categoria, detalle, telefono, viaAudio, cargadoPor }) {
   const numero = generarNumeroReclamo();
   db.prepare(`
-    INSERT INTO reclamos (numero, nombre, dni, domicilio, categoria, detalle, telefono, via_audio)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(numero, nombre, dni, domicilio, categoria || "Otro", detalle, telefono || null, viaAudio ? 1 : 0);
+    INSERT INTO reclamos (numero, nombre, dni, domicilio, categoria, detalle, telefono, via_audio, cargado_por)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(numero, nombre, dni, domicilio, categoria || "Otro", detalle, telefono || null, viaAudio ? 1 : 0, cargadoPor || null);
   return numero;
 }
 
@@ -361,7 +362,7 @@ function getReclamos(limit = 5000, categorias = null) {
   const f = filtroCategorias(categorias);
   return db.prepare(`
     SELECT id, numero, fecha, nombre, dni, domicilio, categoria, detalle, telefono, via_audio,
-           estado, respuesta, estado_fecha, estado_por
+           estado, respuesta, estado_fecha, estado_por, cargado_por
     FROM reclamos
     ${f.sql}
     ORDER BY id DESC
@@ -373,7 +374,7 @@ function getReclamos(limit = 5000, categorias = null) {
 function getReclamoPorNumero(numero) {
   return db.prepare(`
     SELECT id, numero, fecha, nombre, dni, domicilio, categoria, detalle, telefono, via_audio,
-           estado, respuesta, estado_fecha, estado_por
+           estado, respuesta, estado_fecha, estado_por, cargado_por
     FROM reclamos WHERE numero = ?
   `).get(numero) || null;
 }
@@ -381,7 +382,7 @@ function getReclamoPorNumero(numero) {
 function getReclamoPorId(id) {
   return db.prepare(`
     SELECT id, numero, fecha, nombre, dni, domicilio, categoria, detalle, telefono, via_audio,
-           estado, respuesta, estado_fecha, estado_por
+           estado, respuesta, estado_fecha, estado_por, cargado_por
     FROM reclamos WHERE id = ?
   `).get(id) || null;
 }

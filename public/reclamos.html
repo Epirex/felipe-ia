@@ -574,6 +574,7 @@
   <div id="acciones-header" style="display:flex;gap:10px;flex-wrap:wrap" hidden>
     <a class="btn" id="btn-panel" href="/" hidden><span class="material-symbols-outlined">arrow_back</span> Panel principal</a>
     <button class="btn" id="btn-usuarios" onclick="abrirUsuarios()" hidden><span class="material-symbols-outlined">group</span> Usuarios</button>
+    <button class="btn" onclick="abrirNuevo()"><span class="material-symbols-outlined">add_circle</span> Nuevo reclamo</button>
     <button class="btn" onclick="cargar()"><span class="material-symbols-outlined">refresh</span> Actualizar</button>
     <a class="btn" href="/api/export/reclamos.xlsx"><span class="material-symbols-outlined">download</span> Descargar Excel</a>
     <button class="btn" onclick="cerrarSesion()"><span class="material-symbols-outlined">logout</span> Salir</button>
@@ -640,6 +641,29 @@
     <div class="pie">
       <button type="button" class="b2" onclick="document.getElementById('dlg-estado').close()">Cancelar</button>
       <button type="submit" class="b1">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Nuevo reclamo (admin y áreas) -->
+<dialog id="dlg-nuevo">
+  <form class="dlg" onsubmit="guardarNuevo(event)">
+    <h3>Nuevo reclamo</h3>
+    <div class="info">Para ciudadanos que prefieren que una persona les tome el reclamo.</div>
+    <div class="fila">
+      <label>Nombre completo <input class="f" id="n-nombre" maxlength="100" required></label>
+      <label>DNI <input class="f" id="n-dni" maxlength="12" inputmode="numeric" required></label>
+    </div>
+    <div class="fila">
+      <label>Domicilio / lugar <input class="f" id="n-domicilio" maxlength="200" required></label>
+      <label>Categoría <select class="f" id="n-categoria"></select></label>
+    </div>
+    <label>Teléfono de contacto <input class="f" id="n-telefono" maxlength="30"></label>
+    <label>Detalle del reclamo <textarea class="f" id="n-detalle" maxlength="2000" required></textarea></label>
+    <div class="err" id="n-err"></div>
+    <div class="pie">
+      <button type="button" class="b2" onclick="document.getElementById('dlg-nuevo').close()">Cancelar</button>
+      <button type="submit" class="b1">Guardar reclamo</button>
     </div>
   </form>
 </dialog>
@@ -898,7 +922,8 @@
       celda(tr, r.domicilio);
       celda(tr, r.detalle, "detalle");
       celda(tr, r.telefono, "nowrap");
-      celda(tr, r.via_audio ? "Audio" : "Texto", "nowrap");
+      celda(tr, r.cargado_por ? "Funcionario" : (r.via_audio ? "Audio" : "Texto"), "nowrap");
+      if (r.cargado_por) tr.lastChild.title = "Cargado por " + r.cargado_por;
 
       // Todos pueden cambiar el estado; editar y eliminar solo el admin
       const acc = el("div", { className: "acciones" });
@@ -929,6 +954,29 @@
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || "No se pudo completar la acción.");
     return j;
+  }
+
+  // ── Nuevo reclamo (cargado por un funcionario) ──
+  function abrirNuevo() {
+    const sel = $("n-categoria");
+    sel.replaceChildren();
+    for (const c of (esAdmin() ? categorias : sesion.categorias)) sel.add(new Option(c, c));
+    for (const id of ["n-nombre", "n-dni", "n-domicilio", "n-telefono", "n-detalle"]) $(id).value = "";
+    $("n-err").textContent = "";
+    $("dlg-nuevo").showModal();
+  }
+
+  async function guardarNuevo(ev) {
+    ev.preventDefault();
+    try {
+      const j = await enviar("/api/reclamos", "POST", {
+        nombre: $("n-nombre").value, dni: $("n-dni").value, domicilio: $("n-domicilio").value,
+        categoria: $("n-categoria").value, telefono: $("n-telefono").value, detalle: $("n-detalle").value,
+      });
+      $("dlg-nuevo").close();
+      alert("Reclamo guardado. N° de reclamo: " + j.numero + "\nInformáselo al ciudadano para que pueda consultarlo.");
+      cargar();
+    } catch (e) { $("n-err").textContent = e.message; }
   }
 
   // ── Cambiar estado ──

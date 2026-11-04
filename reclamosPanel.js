@@ -15,6 +15,7 @@ const {
   ESTADOS,
   getReclamos,
   getReclamoPorId,
+  guardarReclamo,
   actualizarReclamo,
   cambiarEstadoReclamo,
   eliminarReclamo,
@@ -164,6 +165,35 @@ function crearRouterReclamos(getAdmin) {
     }
   });
 
+  // Cargar un reclamo a mano (el ciudadano prefiere hablar con una persona): admin y áreas.
+  // Las áreas solo pueden cargarlo en sus propias categorías.
+  router.post("/api/reclamos", requerirSesion, jsonParser, (req, res) => {
+    try {
+      const b = req.body || {};
+      const limpiar = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+      const datos = {
+        nombre:    limpiar(b.nombre, 100),
+        dni:       limpiar(b.dni, 20).replace(/[.\s-]/g, ""),
+        domicilio: limpiar(b.domicilio, 200),
+        categoria: limpiar(b.categoria, 50),
+        detalle:   limpiar(b.detalle, 2000),
+        telefono:  limpiar(b.telefono, 30),
+      };
+      if (datos.nombre.length < 3 || !datos.domicilio || datos.detalle.length < 10) {
+        return res.status(400).json({ error: "Nombre, domicilio y detalle (mín. 10 caracteres) son obligatorios." });
+      }
+      if (!/^\d{7,8}$/.test(datos.dni)) return res.status(400).json({ error: "El DNI debe tener 7 u 8 números." });
+      if (!CATEGORIAS.includes(datos.categoria)) return res.status(400).json({ error: "Categoría inválida." });
+      if (req.sesion.rol !== "admin" && !req.sesion.categorias.includes(datos.categoria)) {
+        return res.status(403).json({ error: "No podés cargar reclamos de esa categoría." });
+      }
+      const numero = guardarReclamo({ ...datos, viaAudio: false, cargadoPor: req.sesion.nombre });
+      res.json({ ok: true, numero });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Cambiar estado + comentario: permitido a admin y a áreas (solo sobre sus categorías)
   router.patch("/api/reclamos/:id/estado", requerirSesion, jsonParser, (req, res) => {
     try {
@@ -250,7 +280,7 @@ function crearRouterReclamos(getAdmin) {
         ws.addRow({
           numero: r.numero, fecha: r.fecha, estado: r.estado, categoria: r.categoria, nombre: r.nombre,
           dni: String(r.dni), domicilio: r.domicilio, detalle: r.detalle, respuesta: r.respuesta || "",
-          telefono: r.telefono ? String(r.telefono) : "", via: r.via_audio ? "Audio" : "Texto",
+          telefono: r.telefono ? String(r.telefono) : "", via: r.cargado_por ? "Funcionario" : (r.via_audio ? "Audio" : "Texto"),
         });
       }
       ws.eachRow((row) => { row.alignment = { vertical: "top", wrapText: true }; });
