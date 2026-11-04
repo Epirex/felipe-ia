@@ -24,7 +24,7 @@ const fs = require("fs");
 const path = require("path");
 const { faqs, charla, submenus, bienvenida, noEntendido } = require("./faqs");
 const reclamos = require("./reclamos");
-const { registrarMensaje, registrarContacto, getContactosConocidos } = require("./db");
+const { registrarMensaje, registrarContacto, getContactosConocidos, registrarAlertaSaludMental } = require("./db");
 const { iniciarPanel }     = require("./panel");
 const botState             = require("./state");
 const { notificarAlerta }  = require("./alertas");
@@ -838,7 +838,13 @@ async function iniciarBot(intentosReconexion = 0) {
       const { respuesta, faq, respondido, enviarVolver, sensible } = buscarRespuesta(texto, remitente);
 
       registrarRespuesta(remitente);
-      // Mensajes de salud mental: no se guarda el texto del vecino (dato sensible)
+      // Mensajes de salud mental: no se guarda el texto del vecino (dato sensible),
+      // pero sí se levanta una alerta en el panel con su teléfono para poder contactarlo.
+      if (sensible) {
+        const real = msg.key.senderPn || remitente;
+        registrarAlertaSaludMental(real.split("@")[0], !real.endsWith("@s.whatsapp.net"));
+        logger.warn(`🧡 Alerta de salud mental registrada (${real.split("@")[0]}).`);
+      }
       registrarMensaje({
         jid: remitente,
         pregunta: sensible ? "[Salud mental]" : esAudio ? `🎙️ ${texto}` : texto,

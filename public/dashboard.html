@@ -540,6 +540,9 @@
     <div id="updated">Cargando información...</div>
   </div>
 
+  <!-- Alertas de salud mental (solo se muestra si hay pendientes) -->
+  <div id="alertas-salud" style="display:none; margin-bottom:20px;"></div>
+
   <!-- Cards de resumen -->
   <div class="cards">
     <div class="card">
@@ -1153,9 +1156,58 @@
     }
   };
 
+  // ── Alertas de salud mental ───────────────────────────────────
+  async function cargarAlertasSalud() {
+    const cont = document.getElementById("alertas-salud");
+    try {
+      const res = await fetch("/api/alertas-salud");
+      if (!res.ok) return;
+      const alertas = await res.json();
+      if (!alertas.length) { cont.style.display = "none"; cont.innerHTML = ""; return; }
+      cont.style.display = "block";
+      cont.innerHTML = alertas.map((a) => {
+        const tel = escapeHtml(a.telefono);
+        const numero = a.es_lid
+          ? `<span style="font-size:.85rem">⚠️ WhatsApp no informó el teléfono real. Identificador: <strong>${tel}</strong></span>`
+          : `<a href="https://wa.me/${tel}" target="_blank" rel="noopener" style="color:inherit;font-size:1.5rem;font-weight:700;text-decoration:underline">+${tel}</a>`;
+        const veces = a.veces > 1 ? ` · volvió a escribir ${a.veces} veces` : "";
+        return `
+          <div style="background:var(--md-sys-color-error);color:var(--md-sys-color-on-error);padding:16px 18px;border-radius:12px;margin-bottom:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <span class="material-symbols-outlined" style="font-size:32px">favorite</span>
+            <div style="flex:1;min-width:220px">
+              <div style="font-weight:700">🧡 Alerta de salud mental: un ciudadano pidió ayuda</div>
+              <div style="margin:4px 0">${numero}</div>
+              <div style="font-size:.8rem;opacity:.9">${escapeHtml(a.fecha)}${veces}</div>
+            </div>
+            <button data-atender="${Number(a.id)}" style="background:var(--md-sys-color-on-error);color:var(--md-sys-color-error);border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer">Marcar como atendida</button>
+          </div>`;
+      }).join("");
+    } catch (e) {
+      console.error("Error al cargar alertas de salud mental", e);
+    }
+  }
+
+  document.getElementById("alertas-salud").addEventListener("click", async (ev) => {
+    const btn = ev.target.closest("button[data-atender]");
+    if (!btn) return;
+    if (!confirm("¿Marcar esta alerta como atendida? Desaparecerá del panel.")) return;
+    try {
+      await fetch("/api/alertas-salud/atender", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: Number(btn.dataset.atender) }),
+      });
+      await cargarAlertasSalud();
+    } catch (e) {
+      console.error("No se pudo marcar la alerta:", e);
+    }
+  });
+
   // ── Iniciar y auto-refrescar cada 30 s ───────────────────────
   cargar();
+  cargarAlertasSalud();
   setInterval(cargar, 30000);
+  setInterval(cargarAlertasSalud, 30000);
 </script>
 </body>
 </html>

@@ -18,6 +18,8 @@ const {
   getMensajesParaCsv,
   getDistribucionTipos,
   getMensajesPorPeriodo,
+  getAlertasSaludMental,
+  atenderAlertaSaludMental,
 } = require("./db");
 const { crearRouterReclamos } = require("./reclamosPanel");
 const botState = require("./state");
@@ -290,6 +292,27 @@ app.get("/api/stats", (req, res) => {
       distribucion:  getDistribucionTipos(),
       ultimos:       getUltimosMensajes(20),
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── API: alertas de salud mental ──────────────────────────────
+app.get("/api/alertas-salud", (req, res) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(getAlertasSaludMental());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/alertas-salud/atender", (req, res) => {
+  try {
+    const id = Number(req.body?.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "Parámetros inválidos" });
+    atenderAlertaSaludMental(id);
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

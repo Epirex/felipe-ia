@@ -106,6 +106,48 @@ db.exec(`
 
 const ESTADOS = ["Pendiente", "En curso", "Resuelto", "Rechazado"];
 
+// ── Alertas de salud mental ───────────────────────────────────
+// Cuando un vecino dispara la respuesta de salud mental se guarda acá su teléfono
+// para que el municipio pueda contactarlo. NO se guarda el texto del mensaje.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS alertas_salud_mental (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha     TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+    telefono  TEXT    NOT NULL,
+    es_lid    INTEGER NOT NULL DEFAULT 0,
+    veces     INTEGER NOT NULL DEFAULT 1,
+    atendida  INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_alertas_sm ON alertas_salud_mental(atendida, fecha);
+`);
+
+// Si ya hay una alerta pendiente de ese teléfono, la actualiza (fecha + contador) en vez de duplicarla.
+function registrarAlertaSaludMental(telefono, esLid = false) {
+  const pendiente = db.prepare(
+    "SELECT id FROM alertas_salud_mental WHERE telefono = ? AND atendida = 0"
+  ).get(telefono);
+  if (pendiente) {
+    db.prepare(
+      "UPDATE alertas_salud_mental SET veces = veces + 1, fecha = datetime('now', 'localtime') WHERE id = ?"
+    ).run(pendiente.id);
+    return pendiente.id;
+  }
+  const r = db.prepare(
+    "INSERT INTO alertas_salud_mental (telefono, es_lid) VALUES (?, ?)"
+  ).run(telefono, esLid ? 1 : 0);
+  return Number(r.lastInsertRowid);
+}
+
+function getAlertasSaludMental() {
+  return db.prepare(
+    "SELECT id, fecha, telefono, es_lid, veces FROM alertas_salud_mental WHERE atendida = 0 ORDER BY fecha DESC"
+  ).all();
+}
+
+function atenderAlertaSaludMental(id) {
+  db.prepare("UPDATE alertas_salud_mental SET atendida = 1 WHERE id = ?").run(id);
+}
+
 // ── Privacidad: hashear el JID del usuario ────────────────────
 // Se guarda solo los primeros 16 caracteres del hash SHA-256.
 // Permite contar usuarios únicos sin guardar números de teléfono.
@@ -458,6 +500,9 @@ function respaldarA(destino) {
 
 module.exports = {
   DB_DIR,
+  registrarAlertaSaludMental,
+  getAlertasSaludMental,
+  atenderAlertaSaludMental,
   respaldarA,
   ESTADOS,
   getReclamoPorId,
