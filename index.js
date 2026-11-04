@@ -193,9 +193,41 @@ function esVolver(plano) {
   return palabras.length <= 3 && palabras.some((p) => VOLVER.includes(p));
 }
 
+// ── Salud mental ─────────────────────────────────────────────
+// Si el vecino dice que está triste, deprimido, angustiado o menciona suicidio/muerte,
+// Felipe responde con contención + 2 imágenes con lugares donde pedir ayuda.
+// Tiene prioridad sobre todo lo demás (menú, FAQs, charla casual) pero NO interrumpe
+// un reclamo en curso (ese flujo se atiende antes, en manejarUpsert).
+const SALUD_MENTAL_KW = [
+  "triste", "tristeza", "estoy mal", "me siento mal", "depresion", "deprimido", "deprimida", "depre",
+  "angustia", "angustiado", "angustiada", "ansiedad", "salud mental",
+  "suicidio", "suicidarme", "suicidarse", "suicida", "suicidar",
+  "matarme", "quitarme la vida", "quitarse la vida", "acabar con mi vida", "terminar con mi vida",
+  "no quiero vivir", "no quiero seguir viviendo", "ya no quiero seguir", "no aguanto mas", "no doy mas",
+  "morir", "morirme", "muerte", "quiero morir", "me quiero morir",
+];
+
+const RESPUESTA_SALUD_MENTAL = {
+  tipo: "imagenes",
+  texto:
+    "Eu! Tranqui, estoy acá para ayudarte 🧡\n\n" +
+    "Si necesitás hablar con una persona sobre lo que te está pasando, te paso los siguientes lugares para que puedas pedir ayuda 🧡",
+  archivos: ["saludmental1.jpeg", "saludmental2.png"],
+};
+
+function esSaludMental(plano) {
+  return SALUD_MENTAL_KW.some((kw) => contienePalabra(plano, kw));
+}
+
 function buscarRespuesta(mensaje, jid) {
   const texto = normalizar(mensaje);
   const plano = textoPlano(texto);
+
+  // Salud mental: prioridad máxima
+  if (esSaludMental(plano)) {
+    submenuActivo.delete(jid);
+    return { respuesta: RESPUESTA_SALUD_MENTAL, faq: "salud_mental", respondido: true, enviarVolver: false, sensible: true };
+  }
 
   // Volver al menú desde cualquier lado
   if (esVolver(plano)) {
@@ -803,10 +835,16 @@ async function iniciarBot(intentosReconexion = 0) {
     logger.info(`📩 Mensaje de ${remitente}: ${texto}`);
 
     try {
-      const { respuesta, faq, respondido, enviarVolver } = buscarRespuesta(texto, remitente);
+      const { respuesta, faq, respondido, enviarVolver, sensible } = buscarRespuesta(texto, remitente);
 
       registrarRespuesta(remitente);
-      registrarMensaje({ jid: remitente, pregunta: esAudio ? `🎙️ ${texto}` : texto, faqDisparada: faq, respondido });
+      // Mensajes de salud mental: no se guarda el texto del vecino (dato sensible)
+      registrarMensaje({
+        jid: remitente,
+        pregunta: sensible ? "[Salud mental]" : esAudio ? `🎙️ ${texto}` : texto,
+        faqDisparada: faq,
+        respondido,
+      });
 
       await sock.sendPresenceUpdate("composing", remitente);
       await new Promise((r) => setTimeout(r, 800));
