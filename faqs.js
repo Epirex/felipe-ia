@@ -115,7 +115,7 @@ const faqs = [
   {
     palabras_clave: ["horario", "horarios", "atencion", "atienden", "abren", "cierran", "1"],
     respuesta:
-      "🕐 *Horario de atención*\nLunes a viernes de 7:00 a 13:00 hs.\nSábados, domingos y feriados: cerrado.",
+      "🕐 *Horario de atención*\nHorario del *Parador Municipal de Valle Viejo*:\nLunes a viernes de 7:00 a 13:00 hs.\nSábados, domingos y feriados: cerrado.",
   },
   {
     // Respuesta especial: manda ubicación en el mapa + texto
@@ -126,7 +126,7 @@ const faqs = [
       longitud: -65.72571,
       nombre: "Municipalidad de Valle Viejo",
       direccion: "Av. Presidente Castillo 441, Valle Viejo, Catamarca",
-      texto: "📍 *Ubicación*\nAv. Presidente Castillo 441, Valle Viejo, Catamarca.\n\nTe comparto el pin en el mapa 👇",
+      texto: "📍 *Ubicación*\nEl *Parador Municipal de Valle Viejo* está en Av. Presidente Castillo 441, Valle Viejo, Catamarca.\n\nTe comparto el pin en el mapa 👇",
     },
   },
   {
