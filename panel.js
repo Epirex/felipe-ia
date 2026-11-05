@@ -20,6 +20,7 @@ const {
   getMensajesPorPeriodo,
   getAlertasSaludMental,
   atenderAlertaSaludMental,
+  reabrirAlertaSaludMental,
 } = require("./db");
 const { crearRouterReclamos } = require("./reclamosPanel");
 const botState = require("./state");
@@ -312,6 +313,17 @@ app.post("/api/alertas-salud/atender", (req, res) => {
     const id = Number(req.body?.id);
     if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "Parámetros inválidos" });
     atenderAlertaSaludMental(id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/alertas-salud/reabrir", (req, res) => {
+  try {
+    const id = Number(req.body?.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "Parámetros inválidos" });
+    reabrirAlertaSaludMental(id);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

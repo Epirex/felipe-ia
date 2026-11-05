@@ -139,16 +139,29 @@ function registrarAlertaSaludMental(telefono, esLid = false) {
   return Number(r.lastInsertRowid);
 }
 
-function getAlertasSaludMental() {
-  return db.prepare(
-    "SELECT id, fecha, telefono, es_lid, veces FROM alertas_salud_mental WHERE atendida = 0 ORDER BY fecha DESC"
+// Migración: fecha en que se marcó como atendida (el historial se conserva)
+if (!db.prepare("PRAGMA table_info(alertas_salud_mental)").all().some((c) => c.name === "fecha_atencion")) {
+  db.exec("ALTER TABLE alertas_salud_mental ADD COLUMN fecha_atencion TEXT");
+}
+
+// Devuelve pendientes primero y luego las atendidas más recientes (historial, nunca se borran).
+function getAlertasSaludMental(limiteAtendidas = 30) {
+  const pendientes = db.prepare(
+    "SELECT id, fecha, telefono, es_lid, veces, atendida, fecha_atencion FROM alertas_salud_mental WHERE atendida = 0 ORDER BY fecha DESC"
   ).all();
+  const atendidas = db.prepare(
+    "SELECT id, fecha, telefono, es_lid, veces, atendida, fecha_atencion FROM alertas_salud_mental WHERE atendida = 1 ORDER BY COALESCE(fecha_atencion, fecha) DESC LIMIT ?"
+  ).all(limiteAtendidas);
+  return [...pendientes, ...atendidas];
 }
 
 function atenderAlertaSaludMental(id) {
-  db.prepare("UPDATE alertas_salud_mental SET atendida = 1 WHERE id = ?").run(id);
+  db.prepare("UPDATE alertas_salud_mental SET atendida = 1, fecha_atencion = datetime('now', 'localtime') WHERE id = ?").run(id);
 }
 
+function reabrirAlertaSaludMental(id) {
+  db.prepare("UPDATE alertas_salud_mental SET atendida = 0, fecha_atencion = NULL WHERE id = ?").run(id);
+}
 // ── Privacidad: hashear el JID del usuario ────────────────────
 // Se guarda solo los primeros 16 caracteres del hash SHA-256.
 // Permite contar usuarios únicos sin guardar números de teléfono.
@@ -504,6 +517,7 @@ module.exports = {
   registrarAlertaSaludMental,
   getAlertasSaludMental,
   atenderAlertaSaludMental,
+  reabrirAlertaSaludMental,
   respaldarA,
   ESTADOS,
   getReclamoPorId,
