@@ -496,11 +496,7 @@
 
 <header>
   <div class="header-left">
-    <div class="avatar"><span class="material-symbols-outlined">robot_2</span></div>
-    <div>
-      <h1>Felipe</h1>
-      <div class="sub">Panel Administrativo — Municipalidad de Valle Viejo</div>
-    </div>
+    <h1>Felipe Dashboard</h1>
   </div>
   <div class="header-actions">
     <a href="/qr" id="qr-btn" class="header-btn qr-highlight" style="display: none;">
@@ -1190,6 +1186,14 @@
       const hist = alertas.filter((a) => a.atendida === 1);
       const abierto = cont.querySelector("details")?.open;
       const hayPend = pend.length > 0;
+      // Con pendientes: arriba de todo. Sin pendientes: debajo de la fila de Horarios pico.
+      if (hayPend) {
+        document.querySelector(".top-bar-info").after(cont);
+        cont.style.margin = "0 0 20px";
+      } else {
+        document.querySelector(".charts-grid").after(cont);
+        cont.style.margin = "20px 0";
+      }
       const borde = hayPend ? "var(--md-sys-color-error)" : "var(--md-sys-color-outline-variant, #8884)";
       cont.innerHTML = `
         <div style="border:2px solid ${borde};border-radius:16px;padding:16px 18px;background:var(--md-sys-color-surface-container, transparent)">
