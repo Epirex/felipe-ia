@@ -389,8 +389,61 @@
   }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: color-mix(in srgb, var(--md-sys-color-on-surface) 5%, transparent); }
-  td.detalle { min-width: 320px; white-space: pre-wrap; word-break: break-word; }
+  td.detalle { min-width: 200px; white-space: pre-wrap; word-break: break-word; }
   td.nowrap   { white-space: nowrap; }
+  /* Tabla compacta: entra sin scroll horizontal en pantallas comunes */
+  .wrap th, .wrap td { padding: 10px 12px; }
+  .wrap td .sec { font-size: var(--md-typescale-body-small-size); color: var(--md-sys-color-on-surface-variant); }
+  .wrap td .via { display: inline-block; margin-top: 4px; font-size: 11px; padding: 1px 8px; border-radius: 9999px;
+    background: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface-variant); }
+  /* La columna de acciones queda siempre visible, aunque haya scroll */
+  .wrap th.col-acc, .wrap td.col-acc {
+    position: sticky; right: 0; z-index: 2;
+    background: var(--md-sys-elevation-level1);
+    box-shadow: -6px 0 8px -6px rgba(0,0,0,.25);
+  }
+  .wrap th.col-acc { z-index: 3; background: color-mix(in srgb, var(--md-sys-color-primary) 6%, var(--md-sys-elevation-level1)); }
+  .acciones { flex-wrap: nowrap; }
+  .ib.estado { border-color: var(--md-sys-color-primary); color: var(--md-sys-color-primary); }
+
+  /* ── Botón destacado "Nuevo reclamo" ── */
+  .btn.nuevo {
+    background: #fff; color: var(--md-sys-color-primary);
+    border-color: #fff; font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25);
+  }
+  .btn.nuevo::before { display: none; }
+  .btn.nuevo:hover { background: #eaf6ff; }
+  .b1.grande { height: 48px; padding: 0 24px 0 18px; gap: 8px; font-size: 16px; box-shadow: var(--md-sys-elevation-shadow-2); }
+  .b1.grande .material-symbols-outlined { font-size: 24px; }
+
+  /* ── Campo de contraseña con ojito ── */
+  .pass-wrap { position: relative; display: flex; align-items: center; }
+  .pass-wrap input.f { padding-right: 48px; }
+  .ojo {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    width: 36px; height: 36px; border: none; background: transparent; cursor: pointer;
+    border-radius: 50%; display: grid; place-items: center;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+  .ojo:hover { background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent); }
+
+  /* ── Administración de usuarios ── */
+  dialog.ancho { width: min(860px, calc(100vw - 32px)); }
+  .u-tabla-wrap { overflow-x: auto; border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-large); max-height: 300px; overflow-y: auto; }
+  .u-tabla-wrap table th { top: 0; }
+  .u-tabla-wrap td, .u-tabla-wrap th { padding: 10px 12px; }
+  .perm { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .perm span { font-size: 11px; padding: 1px 8px; border-radius: 9999px; background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); }
+  .perm span.no { background: var(--md-sys-color-error-container); color: var(--md-sys-color-on-error-container); }
+  .clave-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--md-sys-color-on-surface-variant); }
+  .credenciales {
+    border: 2px solid var(--md-sys-color-primary); border-radius: var(--md-sys-shape-large);
+    padding: 12px 14px; background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .credenciales .fila-c { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .credenciales code { font-size: 15px; font-weight: 700; background: rgba(255,255,255,.55); padding: 2px 8px; border-radius: 6px; }
 
   /* ── CHIPS M3 (estado / categoría) ── */
   .chip {
@@ -572,9 +625,9 @@
     <div class="sub" id="quien" hidden></div>
   </div>
   <div id="acciones-header" style="display:flex;gap:10px;flex-wrap:wrap" hidden>
+    <button class="btn nuevo" onclick="abrirNuevo()"><span class="material-symbols-outlined">add_circle</span> Nuevo reclamo</button>
     <a class="btn" id="btn-panel" href="/" hidden><span class="material-symbols-outlined">arrow_back</span> Panel principal</a>
     <button class="btn" id="btn-usuarios" onclick="abrirUsuarios()" hidden><span class="material-symbols-outlined">group</span> Usuarios</button>
-    <button class="btn" onclick="abrirNuevo()"><span class="material-symbols-outlined">add_circle</span> Nuevo reclamo</button>
     <button class="btn" onclick="cargar()"><span class="material-symbols-outlined">refresh</span> Actualizar</button>
     <a class="btn" href="/api/export/reclamos.xlsx"><span class="material-symbols-outlined">download</span> Descargar Excel</a>
     <button class="btn" onclick="cerrarSesion()"><span class="material-symbols-outlined">logout</span> Salir</button>
@@ -590,7 +643,10 @@
     <h2>Ingresar</h2>
     <p>Acceso al seguimiento de reclamos. Cada área ve solo los reclamos que le corresponden.</p>
     <input class="f" id="l-usuario" placeholder="Usuario" autocomplete="username" required>
-    <input class="f" id="l-pass" type="password" placeholder="Contraseña" autocomplete="current-password" required>
+    <div class="pass-wrap">
+      <input class="f" id="l-pass" type="password" placeholder="Contraseña" autocomplete="current-password" required>
+      <button type="button" class="ojo" onclick="verPass('l-pass', this)" title="Mostrar contraseña" aria-label="Mostrar contraseña"><span class="material-symbols-outlined">visibility</span></button>
+    </div>
     <div class="err" id="l-err"></div>
     <button class="b1" type="submit">Ingresar</button>
   </form>
@@ -611,6 +667,7 @@
   </section>
 
   <div class="toolbar">
+    <button class="b1 grande" onclick="abrirNuevo()"><span class="material-symbols-outlined">add_circle</span> Nuevo reclamo</button>
     <input id="buscar" type="search" placeholder="Buscar por nombre, DNI, domicilio o detalle..." oninput="render()">
     <select id="filtro-estado" onchange="render()"><option value="">Todos los estados</option></select>
     <select id="filtro-cat" onchange="render()"><option value="">Todas las categorías</option></select>
@@ -619,7 +676,7 @@
   <div class="wrap">
     <table>
       <thead>
-        <tr><th>N°</th><th>Fecha</th><th>Estado</th><th>Categoría</th><th>Nombre</th><th>DNI</th><th>Domicilio / lugar</th><th>Detalle</th><th>Teléfono</th><th>Vía</th><th>Acciones</th></tr>
+        <tr><th>N° / Fecha</th><th>Estado</th><th>Categoría</th><th>Solicitante</th><th>Domicilio / lugar</th><th>Detalle</th><th class="col-acc">Acciones</th></tr>
       </thead>
       <tbody id="filas"></tbody>
     </table>
@@ -704,26 +761,43 @@
 </dialog>
 
 <!-- Usuarios (solo admin) -->
-<dialog id="dlg-usuarios">
+<dialog id="dlg-usuarios" class="ancho">
   <div class="dlg">
     <h3>Usuarios por dirección / área</h3>
-    <div class="info">Cada usuario ve solo las categorías asignadas y únicamente puede cambiar el estado de los reclamos.</div>
-    <div class="usuarios-lista" id="u-lista"></div>
+    <div class="info">Solo vos (administrador) ves esta lista. Cada área ve únicamente sus categorías, puede cargar reclamos nuevos y cambiar el estado de los suyos; no puede editar ni eliminar.</div>
+    <div class="credenciales" id="u-credenciales" hidden>
+      <strong id="u-cred-titulo">Credenciales</strong>
+      <div class="fila-c">Usuario: <code id="u-cred-user"></code></div>
+      <div class="fila-c">Contraseña: <code id="u-cred-pass" data-oculta="1">••••••••</code>
+        <button type="button" class="ib" onclick="alternarCred()" title="Mostrar / ocultar"><span class="material-symbols-outlined" id="u-cred-ojo">visibility</span></button>
+        <button type="button" class="ib" onclick="copiarCred()" title="Copiar contraseña"><span class="material-symbols-outlined">content_copy</span></button>
+      </div>
+      <div class="info" style="color:inherit">Anotala o copiala ahora: por seguridad no se vuelve a mostrar (si se pierde, usá “Restablecer contraseña”).</div>
+    </div>
+    <div class="u-tabla-wrap">
+      <table>
+        <thead><tr><th>Usuario</th><th>Área</th><th>Categorías y permisos</th><th>Contraseña</th><th>Acciones</th></tr></thead>
+        <tbody id="u-lista"></tbody>
+      </table>
+    </div>
     <hr>
     <form onsubmit="guardarUsuario(event)" style="display:flex;flex-direction:column;gap:12px">
       <strong id="u-form-titulo">Nuevo usuario</strong>
-      <div class="fila" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)">Usuario
+      <div class="fila">
+        <label>Usuario
           <input class="f" id="u-usuario" maxlength="30" placeholder="ej: medioambiente" autocomplete="off" required></label>
-        <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)">Contraseña
-          <input class="f" id="u-pass" type="password" maxlength="100" placeholder="mínimo 8 caracteres" autocomplete="new-password"></label>
+        <label>Contraseña
+          <div class="pass-wrap">
+            <input class="f" id="u-pass" type="password" maxlength="100" placeholder="mínimo 8 caracteres" autocomplete="new-password">
+            <button type="button" class="ojo" onclick="verPass('u-pass', this)" title="Mostrar contraseña" aria-label="Mostrar contraseña"><span class="material-symbols-outlined">visibility</span></button>
+          </div></label>
       </div>
-      <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)">Nombre del área
+      <label>Nombre del área
         <input class="f" id="u-nombre" maxlength="80" placeholder="ej: Dirección de Medio Ambiente" required></label>
-      <div style="font-size:13px;color:var(--muted)">Categorías que puede ver</div>
+      <div class="info">Categorías que puede ver</div>
       <div class="checks" id="u-cats"></div>
       <div class="err" id="u-err"></div>
-      <div class="pie" style="display:flex;justify-content:flex-end;gap:10px">
+      <div class="pie">
         <button type="button" class="b2" id="u-cancelar-edicion" onclick="nuevoUsuario()" hidden>Cancelar edición</button>
         <button type="button" class="b2" onclick="document.getElementById('dlg-usuarios').close()">Cerrar</button>
         <button type="submit" class="b1" id="u-guardar">Crear usuario</button>
@@ -905,8 +979,12 @@
     tbody.replaceChildren();
     for (const r of lista) {
       const tr = document.createElement("tr");
-      celda(tr, r.numero, "nowrap");
-      celda(tr, r.fecha, "nowrap");
+      const tdN = el("td", { className: "nowrap" }, [
+        el("strong", { textContent: "N° " + r.numero }),
+        el("div", { className: "sec", textContent: r.fecha }),
+        el("span", { className: "via", textContent: r.cargado_por ? "Funcionario" : (r.via_audio ? "Audio" : "Texto"), title: r.cargado_por ? "Cargado por " + r.cargado_por : "" }),
+      ]);
+      tr.appendChild(tdN);
 
       const chipE = el("span", { className: "chip", textContent: r.estado });
       chipE.style.background = colorEstado(r.estado);
@@ -917,17 +995,16 @@
       const chip = el("span", { className: "chip", textContent: r.categoria });
       chip.style.background = colorDe(r.categoria);
       tr.appendChild(el("td", {}, [chip]));
-      celda(tr, r.nombre);
-      celda(tr, r.dni, "nowrap");
+      const tdS = el("td", {}, [el("div", { textContent: r.nombre })]);
+      tdS.appendChild(el("div", { className: "sec", textContent: "DNI " + r.dni }));
+      if (r.telefono) tdS.appendChild(el("div", { className: "sec", textContent: "📞 " + r.telefono }));
+      tr.appendChild(tdS);
       celda(tr, r.domicilio);
       celda(tr, r.detalle, "detalle");
-      celda(tr, r.telefono, "nowrap");
-      celda(tr, r.cargado_por ? "Funcionario" : (r.via_audio ? "Audio" : "Texto"), "nowrap");
-      if (r.cargado_por) tr.lastChild.title = "Cargado por " + r.cargado_por;
 
       // Todos pueden cambiar el estado; editar y eliminar solo el admin
       const acc = el("div", { className: "acciones" });
-      const bEs = el("button", { className: "ib", title: "Cambiar estado" }, [el("span", { className: "material-symbols-outlined", textContent: "published_with_changes" })]);
+      const bEs = el("button", { className: "ib estado", title: "Cambiar estado" }, [el("span", { className: "material-symbols-outlined", textContent: "published_with_changes" })]);
       bEs.onclick = () => abrirEstado(r);
       acc.appendChild(bEs);
       if (esAdmin()) {
@@ -937,7 +1014,7 @@
         bDel.onclick = () => abrirEliminar(r);
         acc.appendChild(bEd); acc.appendChild(bDel);
       }
-      tr.appendChild(el("td", {}, [acc]));
+      tr.appendChild(el("td", { className: "col-acc" }, [acc]));
       tbody.appendChild(tr);
     }
     $("vacio").hidden = lista.length > 0;
@@ -1043,28 +1120,78 @@
       }
     }
     nuevoUsuario();
+    $("u-credenciales").hidden = true; credPass = "";
     await cargarUsuarios();
     $("dlg-usuarios").showModal();
   }
+
+  const PERMISOS_AREA = [["Ver sus categorías", true], ["Cargar reclamos", true], ["Cambiar estado", true], ["Editar reclamos", false], ["Eliminar reclamos", false], ["Administrar usuarios", false]];
 
   async function cargarUsuarios() {
     try { usuarios = (await enviar("/api/reclamos-usuarios", "GET")).usuarios; } catch (e) { usuarios = []; }
     const lista = $("u-lista");
     lista.replaceChildren();
-    if (!usuarios.length) lista.appendChild(el("div", { className: "info", textContent: "Todavía no creaste usuarios de áreas." }));
+    if (!usuarios.length) {
+      const td = el("td", { colSpan: 5, className: "vacio", textContent: "Todavía no creaste usuarios de áreas." });
+      lista.appendChild(el("tr", {}, [td]));
+    }
     for (const u of usuarios) {
       const bEd = el("button", { className: "ib", title: "Editar usuario" }, [el("span", { className: "material-symbols-outlined", textContent: "edit" })]);
       bEd.onclick = () => editarUsuario(u);
+      const bKey = el("button", { className: "ib", title: "Restablecer contraseña (genera una nueva)" }, [el("span", { className: "material-symbols-outlined", textContent: "key" })]);
+      bKey.onclick = () => restablecerClave(u);
       const bDel = el("button", { className: "ib del", title: "Eliminar usuario" }, [el("span", { className: "material-symbols-outlined", textContent: "delete" })]);
       bDel.onclick = () => eliminarUsuario(u);
-      lista.appendChild(el("div", { className: "usr" }, [
-        el("div", {}, [
-          el("div", { className: "t", textContent: u.nombre + " (" + u.usuario + ")" }),
-          el("div", { className: "c", textContent: u.categorias.join(", ") }),
-        ]),
-        el("div", { className: "acciones" }, [bEd, bDel]),
+
+      const cats = el("div", { className: "perm" }, u.categorias.map((cat) => { const s = el("span", { textContent: cat }); s.style.background = colorDe(cat); s.style.color = "#fff"; return s; }));
+      const perms = el("div", { className: "perm" }, PERMISOS_AREA.map(([t, ok]) => el("span", { className: ok ? "" : "no", textContent: (ok ? "✓ " : "✗ ") + t })));
+      lista.appendChild(el("tr", {}, [
+        el("td", {}, [el("strong", { textContent: u.usuario }), el("div", { className: "sec", textContent: "Creado " + (u.creado || "") })]),
+        el("td", { textContent: u.nombre }),
+        el("td", {}, [cats, perms]),
+        el("td", {}, [el("span", { className: "clave-pill" }, [el("span", { className: "material-symbols-outlined", textContent: "lock", style: "font-size:16px" }), "Encriptada"])]),
+        el("td", {}, [el("div", { className: "acciones" }, [bEd, bKey, bDel])]),
       ]));
     }
+  }
+
+  // ── Credenciales (se muestran una sola vez) ──
+  let credPass = "";
+  function mostrarCredenciales(titulo, usuario, pass) {
+    credPass = pass;
+    $("u-cred-titulo").textContent = titulo;
+    $("u-cred-user").textContent = usuario;
+    const code = $("u-cred-pass");
+    code.textContent = "••••••••"; code.dataset.oculta = "1";
+    $("u-cred-ojo").textContent = "visibility";
+    $("u-credenciales").hidden = false;
+  }
+  function alternarCred() {
+    const code = $("u-cred-pass");
+    const oculta = code.dataset.oculta === "1";
+    code.textContent = oculta ? credPass : "••••••••";
+    code.dataset.oculta = oculta ? "0" : "1";
+    $("u-cred-ojo").textContent = oculta ? "visibility_off" : "visibility";
+  }
+  async function copiarCred() {
+    try { await navigator.clipboard.writeText(credPass); alert("Contraseña copiada."); }
+    catch (e) { alert("No se pudo copiar. Mostrala con el ojito y copiala a mano."); }
+  }
+  async function restablecerClave(u) {
+    if (!confirm(`¿Generar una contraseña nueva para "${u.usuario}"? La anterior dejará de funcionar.`)) return;
+    try {
+      const j = await enviar("/api/reclamos-usuarios/" + u.id + "/restablecer", "POST");
+      mostrarCredenciales("Nueva contraseña de " + u.nombre, j.usuario, j.password);
+    } catch (e) { $("u-err").textContent = e.message; }
+  }
+
+  // ── Ojito de contraseña ──
+  function verPass(id, btn) {
+    const inp = $(id);
+    const mostrar = inp.type === "password";
+    inp.type = mostrar ? "text" : "password";
+    btn.firstElementChild.textContent = mostrar ? "visibility_off" : "visibility";
+    btn.title = mostrar ? "Ocultar contraseña" : "Mostrar contraseña";
   }
 
   function marcarCats(sel) {
@@ -1076,7 +1203,7 @@
     $("u-form-titulo").textContent = "Nuevo usuario";
     $("u-usuario").value = ""; $("u-usuario").disabled = false;
     $("u-nombre").value = ""; $("u-pass").value = ""; $("u-pass").placeholder = "mínimo 8 caracteres";
-    $("u-pass").required = true;
+    $("u-pass").required = true; $("u-pass").type = "password";
     marcarCats([]);
     $("u-err").textContent = ""; $("u-guardar").textContent = "Crear usuario"; $("u-cancelar-edicion").hidden = true;
   }
@@ -1096,9 +1223,13 @@
     const cats = [...$("u-cats").querySelectorAll("input:checked")].map((c) => c.value);
     const body = { nombre: $("u-nombre").value, password: $("u-pass").value, categorias: cats };
     try {
+      const usuarioNuevo = $("u-usuario").value.trim().toLowerCase();
       if (editandoUsuarioId) await enviar("/api/reclamos-usuarios/" + editandoUsuarioId, "PUT", body);
-      else await enviar("/api/reclamos-usuarios", "POST", { ...body, usuario: $("u-usuario").value });
+      else await enviar("/api/reclamos-usuarios", "POST", { ...body, usuario: usuarioNuevo });
+      const clave = body.password;
+      const eraEdicion = !!editandoUsuarioId;
       nuevoUsuario(); await cargarUsuarios();
+      if (clave) mostrarCredenciales(eraEdicion ? "Contraseña actualizada" : "Usuario creado", usuarioNuevo, clave);
     } catch (e) { $("u-err").textContent = e.message; }
   }
 

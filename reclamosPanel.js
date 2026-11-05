@@ -345,6 +345,25 @@ function crearRouterReclamos(getAdmin) {
     }
   });
 
+  // Las contraseñas se guardan encriptadas (scrypt) y NO se pueden leer, ni siquiera el admin.
+  // Para recuperar el acceso de un área se genera una nueva, que se muestra una sola vez.
+  router.post("/api/reclamos-usuarios/:id/restablecer", requerirSesion, requerirAdmin, (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ error: "ID inválido." });
+      const u = listarUsuariosReclamos().find((x) => x.id === id);
+      if (!u) return res.status(404).json({ error: "Usuario no encontrado." });
+      // Sin caracteres ambiguos (0/O, 1/l/I) para que sea fácil de dictar
+      const alfabeto = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      const password = Array.from(crypto.randomBytes(12), (b) => alfabeto[b % alfabeto.length]).join("");
+      actualizarUsuarioReclamos(id, { nombre: u.nombre, categorias: u.categorias, password });
+      res.setHeader("Cache-Control", "no-store");
+      res.json({ ok: true, usuario: u.usuario, password });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   router.delete("/api/reclamos-usuarios/:id", requerirSesion, requerirAdmin, (req, res) => {
     try {
       const id = Number(req.params.id);
