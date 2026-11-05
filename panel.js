@@ -21,6 +21,9 @@ const {
   getAlertasSaludMental,
   atenderAlertaSaludMental,
   reabrirAlertaSaludMental,
+  getAlertasViolenciaGenero,
+  atenderAlertaViolenciaGenero,
+  reabrirAlertaViolenciaGenero,
 } = require("./db");
 const { crearRouterReclamos } = require("./reclamosPanel");
 const botState = require("./state");
@@ -330,6 +333,28 @@ app.post("/api/alertas-salud/reabrir", (req, res) => {
   }
 });
 
+// ── API: alertas de violencia de género ───────────────────────
+app.get("/api/alertas-violencia", (req, res) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(getAlertasViolenciaGenero());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+for (const [ruta, fn] of [["atender", atenderAlertaViolenciaGenero], ["reabrir", reabrirAlertaViolenciaGenero]]) {
+  app.post(`/api/alertas-violencia/${ruta}`, (req, res) => {
+    try {
+      const id = Number(req.body?.id);
+      if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "Parámetros inválidos" });
+      fn(id);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+}
 // ── API: descartar preguntas sin respuesta ────────────────────
 app.post("/api/no-respondidos/descartar", (req, res) => {
   try {

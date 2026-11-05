@@ -24,7 +24,7 @@ const fs = require("fs");
 const path = require("path");
 const { faqs, charla, submenus, bienvenida, noEntendido } = require("./faqs");
 const reclamos = require("./reclamos");
-const { registrarMensaje, registrarContacto, getContactosConocidos, registrarAlertaSaludMental } = require("./db");
+const { registrarMensaje, registrarContacto, getContactosConocidos, registrarAlertaSaludMental, registrarAlertaViolenciaGenero } = require("./db");
 const { iniciarPanel }     = require("./panel");
 const botState             = require("./state");
 const { notificarAlerta }  = require("./alertas");
@@ -193,6 +193,48 @@ function esVolver(plano) {
   return palabras.length <= 3 && palabras.some((p) => VOLVER.includes(p));
 }
 
+// ── Violencia de género ──────────────────────────────────────
+// Para evitar falsos positivos ("mi mamá me va a matar", "pega el cartel") se exige:
+//  a) una frase específica del tema, o
+//  b) una conducta violenta/controladora Y una pareja o ex pareja en el mismo mensaje,
+//     siempre que la conducta no esté negada ("no me pega").
+// Prioridad máxima, incluso sobre salud mental.
+const VIOLENCIA_FRASES = [
+  "violencia de genero", "violencia domestica", "violencia familiar", "violencia machista",
+  "violencia contra la mujer", "violencia hacia la mujer", "maltrato domestico",
+  "boton antipanico", "linea 144", "llamar al 144", "orden de restriccion",
+  "restriccion de acercamiento", "exclusion del hogar", "denuncia por violencia",
+];
+const PAREJA = "(?:pareja|marido|esposo|novio|conviviente|concubino|ex|ex pareja|ex novio|ex marido|ex esposo|papa de mis hijos|padre de mis hijos)";
+const CONDUCTA = "(?:" + [
+  "me (?:pega|pegaba|pegan|golpea|golpeaba|maltrata|maltrataba|lastima|lastimaba|empuja|empujaba|amenaza|amenazaba|ahorca|persigue|acosa)",
+  "me (?:va a|quiere|quiso|dijo que me) matar",
+  "me dijo que me mata",
+  "me agarro del cuello",
+  "me tiene (?:encerrada|encerrado|amenazada|amenazado|controlada|controlado)",
+  "no me deja (?:salir|trabajar|ver a mi familia|hablar con nadie)",
+  "me (?:controla|revisa|saco|quita) (?:el celular|el telefono|la plata|el sueldo|el dinero)",
+  "(?:tengo|siento) miedo de",
+  "le tengo miedo",
+  "me tiene miedo",
+].join("|") + ")";
+const RE_CONDUCTA_PAREJA = new RegExp(
+  `(?<!(?:^| )(?:no|nunca|jamas) )\\b${CONDUCTA}\\b`
+);
+const RE_PAREJA = new RegExp(`(^| )${PAREJA}( |$)`);
+
+function esViolenciaGenero(plano) {
+  if (VIOLENCIA_FRASES.some((kw) => contienePalabra(plano, kw))) return true;
+  return RE_PAREJA.test(plano) && RE_CONDUCTA_PAREJA.test(plano);
+}
+
+const RESPUESTA_VIOLENCIA_GENERO =
+  "Estoy acá y no estás sola 💜\n\n" +
+  "Lo que me contás es serio y se maneja con reserva. Si estás en una situación de violencia, no es tu culpa y hay personas que te pueden ayudar.\n\n" +
+  "📞 *Línea 144*: atención gratuita, las 24 horas, todos los días. Te escuchan y te orientan.\n" +
+  "🚨 *911*: llamá de inmediato si estás en peligro o sentís que puede pasar algo ahora.\n\n" +
+  "Si podés, buscá un lugar seguro y avisale a alguien de confianza. " +
+  "Y por tu seguridad, recordá borrar este chat si alguien más revisa tu celular. 💜";
 // ── Salud mental ─────────────────────────────────────────────
 // Si el vecino dice que está triste, deprimido, angustiado o menciona suicidio/muerte,
 // Felipe responde con contención + 2 imágenes con lugares donde pedir ayuda.
@@ -223,10 +265,16 @@ function buscarRespuesta(mensaje, jid) {
   const texto = normalizar(mensaje);
   const plano = textoPlano(texto);
 
+  // Violencia de género: prioridad máxima (si además hay riesgo de salud mental, se levantan las dos alertas)
+  if (esViolenciaGenero(plano)) {
+    submenuActivo.delete(jid);
+    return { respuesta: RESPUESTA_VIOLENCIA_GENERO, faq: "violencia_genero", respondido: true, enviarVolver: false, sensible: "violencia_genero", tambienSaludMental: esSaludMental(plano) };
+  }
+
   // Salud mental: prioridad máxima
   if (esSaludMental(plano)) {
     submenuActivo.delete(jid);
-    return { respuesta: RESPUESTA_SALUD_MENTAL, faq: "salud_mental", respondido: true, enviarVolver: false, sensible: true };
+    return { respuesta: RESPUESTA_SALUD_MENTAL, faq: "salud_mental", respondido: true, enviarVolver: false, sensible: "salud_mental" };
   }
 
   // Volver al menú desde cualquier lado
@@ -835,19 +883,27 @@ async function iniciarBot(intentosReconexion = 0) {
     logger.info(`📩 Mensaje de ${remitente}: ${texto}`);
 
     try {
-      const { respuesta, faq, respondido, enviarVolver, sensible } = buscarRespuesta(texto, remitente);
+      const { respuesta, faq, respondido, enviarVolver, sensible, tambienSaludMental } = buscarRespuesta(texto, remitente);
 
       registrarRespuesta(remitente);
       // Mensajes de salud mental: no se guarda el texto del vecino (dato sensible),
       // pero sí se levanta una alerta en el panel con su teléfono para poder contactarlo.
       if (sensible) {
         const real = msg.key.senderPn || remitente;
-        registrarAlertaSaludMental(real.split("@")[0], !real.endsWith("@s.whatsapp.net"));
-        logger.warn(`🧡 Alerta de salud mental registrada (${real.split("@")[0]}).`);
+        const tel = real.split("@")[0];
+        const esLid = !real.endsWith("@s.whatsapp.net");
+        if (sensible === "violencia_genero") {
+          registrarAlertaViolenciaGenero(tel, esLid);
+          logger.warn(`💜 Alerta de violencia de género registrada (${tel}).`);
+        }
+        if (sensible === "salud_mental" || tambienSaludMental) {
+          registrarAlertaSaludMental(tel, esLid);
+          logger.warn(`🧡 Alerta de salud mental registrada (${tel}).`);
+        }
       }
       registrarMensaje({
         jid: remitente,
-        pregunta: sensible ? "[Salud mental]" : esAudio ? `🎙️ ${texto}` : texto,
+        pregunta: sensible ? (sensible === "violencia_genero" ? "[Violencia de género]" : "[Salud mental]") : esAudio ? `🎙️ ${texto}` : texto,
         faqDisparada: faq,
         respondido,
       });

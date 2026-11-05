@@ -538,6 +538,8 @@
 
   <!-- Tarjeta fija de salud mental (siempre visible; las atendidas quedan en el historial) -->
   <div id="alertas-salud" style="margin-bottom:20px;"></div>
+  <!-- Tarjeta fija de violencia de género (violeta) -->
+  <div id="alertas-violencia" style="margin-bottom:20px;"></div>
 
   <!-- Cards de resumen -->
   <div class="cards">
@@ -1152,8 +1154,34 @@
     }
   };
 
-  // ── Alertas de salud mental (tarjeta fija) ────────────────────
-  function renderAlertaSalud(a) {
+  // ── Tarjetas fijas de alertas (salud mental / violencia de género) ──
+  const TARJETAS_ALERTA = {
+    salud: {
+      el: () => document.getElementById("alertas-salud"),
+      api: "/api/alertas-salud", titulo: "Salud mental", icono: "favorite",
+      color: "var(--md-sys-color-error)", colorTexto: "var(--md-sys-color-on-error)",
+      vacio: "Cuando un vecino pida ayuda, su contacto aparecerá acá.", pend: false,
+    },
+    violencia: {
+      el: () => document.getElementById("alertas-violencia"),
+      api: "/api/alertas-violencia", titulo: "Violencia de género", icono: "shield_person",
+      color: "#7b1fa2", colorTexto: "#ffffff",
+      vacio: "Cuando una persona pida ayuda por violencia de género, su contacto aparecerá acá.", pend: false,
+    },
+  };
+
+  // Con pendientes: arriba de todo (violencia primero). Sin pendientes: debajo de la fila de Horarios pico.
+  function acomodarTarjetasAlerta() {
+    const { salud, violencia } = TARJETAS_ALERTA;
+    const arriba = [violencia, salud].filter((t) => t.pend).map((t) => t.el());
+    const abajo = [salud, violencia].filter((t) => !t.pend).map((t) => t.el());
+    arriba.forEach((n) => (n.style.margin = "0 0 20px"));
+    abajo.forEach((n) => (n.style.margin = "20px 0"));
+    if (arriba.length) document.querySelector(".top-bar-info").after(...arriba);
+    if (abajo.length) document.querySelector(".charts-grid").after(...abajo);
+  }
+
+  function renderAlerta(t, a) {
     const tel = escapeHtml(a.telefono);
     const atendida = a.atendida === 1;
     const numero = a.es_lid
@@ -1161,11 +1189,11 @@
       : `<a href="https://wa.me/${tel}" target="_blank" rel="noopener" style="color:inherit;font-size:${atendida ? "1rem" : "1.4rem"};font-weight:700;text-decoration:underline">+${tel}</a>`;
     const veces = a.veces > 1 ? ` · escribió ${a.veces} veces` : "";
     const estado = atendida ? ` · ✅ atendida ${escapeHtml(a.fecha_atencion || "")}` : "";
-    const bg = atendida ? "var(--md-sys-color-surface-container-high, rgba(128,128,128,.15))" : "var(--md-sys-color-error)";
-    const fg = atendida ? "inherit" : "var(--md-sys-color-on-error)";
+    const bg = atendida ? "var(--md-sys-color-surface-container-high, rgba(128,128,128,.15))" : t.color;
+    const fg = atendida ? "inherit" : t.colorTexto;
     const btn = atendida
       ? `<button data-reabrir="${Number(a.id)}" style="background:transparent;color:inherit;border:1px solid currentColor;border-radius:8px;padding:6px 12px;cursor:pointer">Reabrir</button>`
-      : `<button data-atender="${Number(a.id)}" style="background:var(--md-sys-color-on-error);color:var(--md-sys-color-error);border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer">Marcar como atendida</button>`;
+      : `<button data-atender="${Number(a.id)}" style="background:${t.colorTexto};color:${t.color};border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer">Marcar como atendida</button>`;
     return `
       <div style="background:${bg};color:${fg};padding:${atendida ? "10px 14px" : "14px 16px"};border-radius:12px;margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <div style="flex:1;min-width:220px">
@@ -1176,56 +1204,57 @@
       </div>`;
   }
 
-  async function cargarAlertasSalud() {
-    const cont = document.getElementById("alertas-salud");
+  async function cargarTarjetaAlerta(t) {
+    const cont = t.el();
     try {
-      const res = await fetch("/api/alertas-salud");
+      const res = await fetch(t.api);
       if (!res.ok) return;
       const alertas = await res.json();
       const pend = alertas.filter((a) => a.atendida !== 1);
       const hist = alertas.filter((a) => a.atendida === 1);
       const abierto = cont.querySelector("details")?.open;
       const hayPend = pend.length > 0;
-      // Con pendientes: arriba de todo. Sin pendientes: debajo de la fila de Horarios pico.
-      if (hayPend) {
-        document.querySelector(".top-bar-info").after(cont);
-        cont.style.margin = "0 0 20px";
-      } else {
-        document.querySelector(".charts-grid").after(cont);
-        cont.style.margin = "20px 0";
-      }
-      const borde = hayPend ? "var(--md-sys-color-error)" : "var(--md-sys-color-outline-variant, #8884)";
+      t.pend = hayPend;
+      const borde = hayPend ? t.color : "var(--md-sys-color-outline-variant, #8884)";
       cont.innerHTML = `
         <div style="border:2px solid ${borde};border-radius:16px;padding:16px 18px;background:var(--md-sys-color-surface-container, transparent)">
           <div style="display:flex;align-items:center;gap:10px;font-weight:700">
-            <span class="material-symbols-outlined" style="font-size:28px;color:${hayPend ? "var(--md-sys-color-error)" : "inherit"}">favorite</span>
-            <span>Salud mental</span>
+            <span class="material-symbols-outlined" style="font-size:28px;color:${hayPend ? t.color : "inherit"}">${t.icono}</span>
+            <span>${t.titulo}</span>
             <span style="margin-left:auto;font-size:.85rem;font-weight:600">${hayPend ? `${pend.length} pendiente${pend.length > 1 ? "s" : ""}` : "Sin alertas pendientes"}</span>
           </div>
-          ${hayPend ? pend.map(renderAlertaSalud).join("") : `<div style="margin-top:8px;font-size:.9rem;opacity:.8">Cuando un vecino pida ayuda, su contacto aparecerá acá.</div>`}
-          ${hist.length ? `<details style="margin-top:12px" ${abierto ? "open" : ""}><summary style="cursor:pointer;font-size:.9rem;font-weight:600">Historial de atendidas (${hist.length})</summary>${hist.map(renderAlertaSalud).join("")}</details>` : ""}
+          ${hayPend ? pend.map((a) => renderAlerta(t, a)).join("") : `<div style="margin-top:8px;font-size:.9rem;opacity:.8">${t.vacio}</div>`}
+          ${hist.length ? `<details style="margin-top:12px" ${abierto ? "open" : ""}><summary style="cursor:pointer;font-size:.9rem;font-weight:600">Historial de atendidas (${hist.length})</summary>${hist.map((a) => renderAlerta(t, a)).join("")}</details>` : ""}
         </div>`;
+      acomodarTarjetasAlerta();
     } catch (e) {
-      console.error("Error al cargar alertas de salud mental", e);
+      console.error("Error al cargar alertas", t.api, e);
     }
   }
 
-  document.getElementById("alertas-salud").addEventListener("click", async (ev) => {
-    const atender = ev.target.closest("button[data-atender]");
-    const reabrir = ev.target.closest("button[data-reabrir]");
-    if (!atender && !reabrir) return;
-    if (atender && !confirm("¿Marcar esta alerta como atendida? Quedará en el historial de la tarjeta.")) return;
-    try {
-      await fetch(atender ? "/api/alertas-salud/atender" : "/api/alertas-salud/reabrir", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: Number((atender || reabrir).dataset.atender ?? (atender || reabrir).dataset.reabrir) }),
-      });
-      await cargarAlertasSalud();
-    } catch (e) {
-      console.error("No se pudo actualizar la alerta:", e);
-    }
-  });
+  function cargarAlertasSalud() {
+    return Promise.all(Object.values(TARJETAS_ALERTA).map(cargarTarjetaAlerta));
+  }
+
+  for (const t of Object.values(TARJETAS_ALERTA)) {
+    t.el().addEventListener("click", async (ev) => {
+      const atender = ev.target.closest("button[data-atender]");
+      const reabrir = ev.target.closest("button[data-reabrir]");
+      const btn = atender || reabrir;
+      if (!btn) return;
+      if (atender && !confirm("¿Marcar esta alerta como atendida? Quedará en el historial de la tarjeta.")) return;
+      try {
+        await fetch(`${t.api}/${atender ? "atender" : "reabrir"}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: Number(btn.dataset.atender ?? btn.dataset.reabrir) }),
+        });
+        await cargarTarjetaAlerta(t);
+      } catch (e) {
+        console.error("No se pudo actualizar la alerta:", e);
+      }
+    });
+  }
   // ── Iniciar y auto-refrescar cada 30 s ───────────────────────
   cargar();
   cargarAlertasSalud();

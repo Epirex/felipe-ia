@@ -162,6 +162,55 @@ function atenderAlertaSaludMental(id) {
 function reabrirAlertaSaludMental(id) {
   db.prepare("UPDATE alertas_salud_mental SET atendida = 0, fecha_atencion = NULL WHERE id = ?").run(id);
 }
+// ── Alertas de violencia de género ────────────────────────────
+// Misma mecánica que salud mental: se guarda solo el teléfono (NO el texto del mensaje).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS alertas_violencia_genero (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha          TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+    telefono       TEXT    NOT NULL,
+    es_lid         INTEGER NOT NULL DEFAULT 0,
+    veces          INTEGER NOT NULL DEFAULT 1,
+    atendida       INTEGER NOT NULL DEFAULT 0,
+    fecha_atencion TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_alertas_vg ON alertas_violencia_genero(atendida, fecha);
+`);
+
+function registrarAlertaViolenciaGenero(telefono, esLid = false) {
+  const pendiente = db.prepare(
+    "SELECT id FROM alertas_violencia_genero WHERE telefono = ? AND atendida = 0"
+  ).get(telefono);
+  if (pendiente) {
+    db.prepare(
+      "UPDATE alertas_violencia_genero SET veces = veces + 1, fecha = datetime('now', 'localtime') WHERE id = ?"
+    ).run(pendiente.id);
+    return pendiente.id;
+  }
+  const r = db.prepare(
+    "INSERT INTO alertas_violencia_genero (telefono, es_lid) VALUES (?, ?)"
+  ).run(telefono, esLid ? 1 : 0);
+  return Number(r.lastInsertRowid);
+}
+
+function getAlertasViolenciaGenero(limiteAtendidas = 30) {
+  const cols = "id, fecha, telefono, es_lid, veces, atendida, fecha_atencion";
+  const pendientes = db.prepare(
+    `SELECT ${cols} FROM alertas_violencia_genero WHERE atendida = 0 ORDER BY fecha DESC`
+  ).all();
+  const atendidas = db.prepare(
+    `SELECT ${cols} FROM alertas_violencia_genero WHERE atendida = 1 ORDER BY COALESCE(fecha_atencion, fecha) DESC LIMIT ?`
+  ).all(limiteAtendidas);
+  return [...pendientes, ...atendidas];
+}
+
+function atenderAlertaViolenciaGenero(id) {
+  db.prepare("UPDATE alertas_violencia_genero SET atendida = 1, fecha_atencion = datetime('now', 'localtime') WHERE id = ?").run(id);
+}
+
+function reabrirAlertaViolenciaGenero(id) {
+  db.prepare("UPDATE alertas_violencia_genero SET atendida = 0, fecha_atencion = NULL WHERE id = ?").run(id);
+}
 // ── Privacidad: hashear el JID del usuario ────────────────────
 // Se guarda solo los primeros 16 caracteres del hash SHA-256.
 // Permite contar usuarios únicos sin guardar números de teléfono.
@@ -518,6 +567,10 @@ module.exports = {
   getAlertasSaludMental,
   atenderAlertaSaludMental,
   reabrirAlertaSaludMental,
+  registrarAlertaViolenciaGenero,
+  getAlertasViolenciaGenero,
+  atenderAlertaViolenciaGenero,
+  reabrirAlertaViolenciaGenero,
   respaldarA,
   ESTADOS,
   getReclamoPorId,
