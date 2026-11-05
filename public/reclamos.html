@@ -164,15 +164,19 @@
   header {
     background: var(--_header-bg);
     color: var(--_header-fg);
-    padding: 0 24px;
-    height: 64px;
+    padding: 10px 24px;
+    min-height: 64px;
     display: flex; align-items: center;
     justify-content: space-between; flex-wrap: wrap; gap: 12px;
     position: sticky; top: 0; z-index: 20;
     box-shadow: var(--md-sys-elevation-shadow-2);
     transition: background 0.25s, box-shadow 0.25s;
   }
-  @media (max-width: 680px) { header { height: auto; padding: 12px 16px; } }
+  @media (max-width: 680px) { header { padding: 12px 16px; } }
+  /* El título se achica (con "…") y nunca empuja los botones fuera del encabezado */
+  header > div:first-child { flex: 1 1 260px; min-width: 0; }
+  header .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #acciones-header { justify-content: flex-end; }
 
   header h1 {
     margin: 0;
@@ -213,15 +217,55 @@
   main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
 
   /* ── LOGIN ── */
-  #login { min-height: calc(100vh - 64px); display: grid; place-items: center; padding: 20px; }
+  #login {
+    min-height: calc(100vh - 64px); display: grid; place-items: center; padding: 20px;
+    position: relative; overflow: hidden;
+    background:
+      radial-gradient(circle at 15% 20%, color-mix(in srgb, #4fc3f7 45%, transparent) 0, transparent 40%),
+      radial-gradient(circle at 85% 80%, color-mix(in srgb, #7e57c2 35%, transparent) 0, transparent 45%),
+      radial-gradient(circle at 80% 15%, color-mix(in srgb, #26a69a 30%, transparent) 0, transparent 35%),
+      linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+  }
+  [data-theme="dark"] #login {
+    background:
+      radial-gradient(circle at 15% 20%, rgba(2,136,209,.35) 0, transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(126,87,194,.30) 0, transparent 45%),
+      radial-gradient(circle at 80% 15%, rgba(38,166,154,.22) 0, transparent 35%),
+      linear-gradient(135deg, #0b1820 0%, #171226 100%);
+  }
+  /* Burbujas decorativas animadas */
+  #login::before, #login::after {
+    content: ''; position: absolute; border-radius: 50%; filter: blur(2px); opacity: .5;
+    animation: flotar 14s ease-in-out infinite alternate; pointer-events: none;
+  }
+  #login::before { width: 320px; height: 320px; left: -80px; bottom: -100px;
+    background: linear-gradient(135deg, #00658e, #4fc3f7); }
+  #login::after { width: 220px; height: 220px; right: -60px; top: 40px;
+    background: linear-gradient(135deg, #7e57c2, #f06292); animation-delay: -7s; }
+  @keyframes flotar { from { transform: translate(0,0) scale(1); } to { transform: translate(40px,-30px) scale(1.08); } }
+  @media (prefers-reduced-motion: reduce) { #login::before, #login::after { animation: none; } }
+
   .login-card {
-    background: var(--md-sys-elevation-level3);
+    position: relative; z-index: 1;
+    background: color-mix(in srgb, var(--md-sys-color-surface) 78%, transparent);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid color-mix(in srgb, #fff 55%, transparent);
     border-radius: var(--md-sys-shape-extra-large);
-    padding: 32px;
+    padding: 36px 32px 32px;
     width: min(400px, 94vw);
-    box-shadow: var(--md-sys-elevation-shadow-3);
+    box-shadow: 0 20px 50px rgba(0, 40, 70, .25);
     display: flex; flex-direction: column; gap: 16px;
   }
+  [data-theme="dark"] .login-card { border-color: rgba(255,255,255,.08); }
+  .login-logo {
+    width: 64px; height: 64px; border-radius: 20px; align-self: center;
+    display: grid; place-items: center; color: #fff;
+    background: linear-gradient(135deg, #00658e, #4fc3f7);
+    box-shadow: 0 8px 20px rgba(0, 101, 142, .4);
+  }
+  .login-logo .material-symbols-outlined { font-size: 34px; }
+  .login-card h2, .login-card > p { text-align: center; }
+  .login-card .b1 { justify-content: center; height: 48px; font-size: 16px; margin-top: 4px; }
   .login-card h2 {
     margin: 0;
     font-size: var(--md-typescale-headline-small-size);
@@ -567,7 +611,7 @@
     font-size: var(--md-typescale-label-large-size);
     font-weight: var(--md-typescale-label-large-weight);
     letter-spacing: var(--md-typescale-label-large-tracking);
-    display: inline-flex; align-items: center;
+    display: inline-flex; align-items: center; justify-content: center;
     position: relative; overflow: hidden;
     box-shadow: var(--md-sys-elevation-shadow-0);
     transition: box-shadow 200ms;
@@ -640,6 +684,7 @@
 <!-- Login -->
 <section id="login" hidden>
   <form class="login-card" onsubmit="iniciarSesion(event)">
+    <div class="login-logo"><span class="material-symbols-outlined">campaign</span></div>
     <h2>Ingresar</h2>
     <p>Acceso al seguimiento de reclamos. Cada área ve solo los reclamos que le corresponden.</p>
     <input class="f" id="l-usuario" placeholder="Usuario" autocomplete="username" required>
@@ -847,7 +892,11 @@
   function mostrarApp() {
     $("login").hidden = true; $("app").hidden = false; $("acciones-header").hidden = false;
     $("quien").hidden = false;
-    $("quien").textContent = esAdmin() ? "Administrador — acceso total" : sesion.nombre + " — " + sesion.categorias.join(", ");
+    const cats = sesion.categorias || [];
+    $("quien").textContent = esAdmin()
+      ? "Administrador — acceso total"
+      : sesion.nombre + " — " + (cats.length > 3 ? cats.length + " categorías" : cats.join(", "));
+    $("quien").title = esAdmin() ? "" : "Categorías: " + cats.join(", ");
     $("btn-usuarios").hidden = !esAdmin();
     $("btn-panel").hidden = !esAdmin();
     cargar();
