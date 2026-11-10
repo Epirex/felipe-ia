@@ -119,7 +119,7 @@ function registrarRespuesta(jid) {
 }
 
 // ── Palabras que disparan el menú de bienvenida ───────────────
-const SALUDOS = ["hola", "buenas", "buen dia", "buen día", "buenas tardes", "buenas noches", "menu", "menú", "ayuda"];
+const SALUDOS = ["hola", "buenas", "buenos dias", "buen dia", "buen día", "buenas tardes", "buenas noches", "menu", "menú", "ayuda"];
 
 function normalizar(texto) {
   return texto

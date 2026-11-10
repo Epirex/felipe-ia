@@ -135,7 +135,7 @@ const faqs = [
     respuesta: { tipo: "submenu", id: "tramites", texto: submenus.tramites.texto },
   },
   {
-    palabras_clave: ["camion atmosferico", "atmosferico", "camion"],
+    palabras_clave: ["camion atmosferico", "atmosferico", "camion", "desagote", "desagotar", "desagotan", "desagotes", "desagotado", "desagotarlo"],
     respuesta: submenus.tramites.opciones["1"].respuesta,
   },
   {
